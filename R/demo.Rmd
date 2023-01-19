@@ -1,0 +1,406 @@
+---
+title: "Participant characteristics"
+author: "baf44"
+date: "12/8/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+```{r load packages }
+# load packages
+library(data.table)
+library(boot) 
+library(table1)
+library(ggplot2)
+library(dplyr)
+library(haven)
+```
+
+```{r load datasets, include=FALSE}
+
+# import demographics database
+anthro_data <- read_sav("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/anthro_data.sav")
+
+# import V6 database
+V6 <- read_sav("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/visit6_data.sav")
+
+# import scan status redcap form
+scanning <- read.csv("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/FoodAndBrainR01DataP-Scansroar_DATA_2023-01-12_1521.csv")
+names(scanning)[names(scanning) == "par_id"] <- "id" # change par_id column to 'id'
+
+# import censor summary
+censor_sum <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+names(censor_sum)[names(censor_sum) == "sub"] <- "id" # change sub column to 'id'
+
+# import motion summary
+mot_sum <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/task-foodcue_avg-fd.tsv")
+
+# import index file that specifies children included in analyses
+index_long <- read.table("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+
+# convert index_long to dataframe, add column name
+index <- as.data.frame(t(index_long))
+names(index) <- "id"
+
+```
+
+```{r generate demo variables}
+
+#### Fat Mass Index ####
+# height in meters 
+anthro_data$height_avg_meters <- NA
+anthro_data$height_avg_meters <- (anthro_data$height_avg)*.01
+
+# FMI
+anthro_data$dxa_total_fat_mass_kg <- as.numeric(anthro_data$dxa_total_fat_mass)/1000
+anthro_data$FMI <- NA
+anthro_data$FMI <- anthro_data$dxa_total_fat_mass_kg / (anthro_data$height_avg_meters)^2
+
+#### Income ####
+# orig coding (0'<$20K' 1'$20-35,999K' 2'$36-50,999K' 3'$51-75,999K' 4'$76-100K' 5'>$100K')
+
+# make income_recode variable with 3 brackets: >51k, 51-100k, >100k
+anthro_data$income_recode <- NA
+anthro_data$income_recode[anthro_data$income < 3] <- 0
+anthro_data$income_recode[anthro_data$income == 3 ] <- 1
+anthro_data$income_recode[anthro_data$income == 4 ] <- 1
+anthro_data$income_recode[anthro_data$income == 5 ] <- 2
+
+anthro_data$income_recode <- factor(anthro_data$income_recode, levels=c(0,1,2),
+         labels=c("< $51,000K", 
+                  "51-100K",
+                  "> $100K"))
+
+#### Maternal education ####
+# Make maternal education variable based on parent_ed and parent_respondent
+anthro_data$mom_edu <- NA
+anthro_data$mom_edu_other <- NA
+for (i in 1:nrow(anthro_data)) {
+  if((anthro_data$parent_respondent[i] == 0)) {
+    anthro_data$mom_edu[i] <- anthro_data$parent_ed[i]
+    anthro_data$mom_edu_other[i] <- anthro_data$parent_ed_other[i]
+  }
+  else {
+    anthro_data$mom_edu[i] <- anthro_data$partner_ed[i]
+    anthro_data$mom_edu_other[i] <- anthro_data$partner_ed_other[i]
+  }
+}
+
+# Original levels: (0=HighSchool,  1=Associates, 2=Technical, 3=Bachelors, 4=masters, 5=PhD, 6=MD, 7=JD, 8=Other)
+
+# Create new maternal education variable with 3 levels (0= >BA, 1=BA, 2=>BA, 3=other)
+anthro_data$mom_edu_recode <- NA
+anthro_data$mom_edu_recode[anthro_data$mom_edu < 3] <- 0
+anthro_data$mom_edu_recode[anthro_data$mom_edu == 3 ] <- 1
+anthro_data$mom_edu_recode[anthro_data$mom_edu > 3 & anthro_data$mom_edu < 8 ] <- 2
+#anthro_data$mom_edu_recode[anthro_data$mom_edu == 8 ] <- 3 #there are no "Other"s
+anthro_data$mom_edu_recode <- factor(anthro_data$mom_edu_recode, levels=c(0,1,2),
+         labels=c("< BA", 
+                  "BA",
+                  "> BA"))
+
+#### Maternal BMI ####
+anthro_data$mom_bmi <- NA
+anthro_data$mom_bmi_method <- NA
+for (i in 1:nrow(anthro_data)) {
+  if((anthro_data$parent_respondent[i] == 0)) {
+    anthro_data$mom_bmi[i] <- anthro_data$parent_bmi[i] #parent_bmi is from measured height/weight
+    anthro_data$mom_bmi_method[i] <- "measured"
+  }
+  else {
+    anthro_data$mom_bmi[i] <- anthro_data$sr_mom_bmi[i] #sr_mom_bmi is from self-report height/weight
+    anthro_data$mom_bmi_method[i] <- "reported"
+  }
+}
+```
+
+```{r summarize scan status}
+# subset scanning to those who attended visit 6
+scanning_v6 <- setDT(scanning)[id %chin% V6$id]
+
+# count the number of runs completed per subject
+scanning_v6$n_run_complete <- rowSums(scanning_v6[ , c("fmri_pp_scans_roar___2","fmri_pp_scans_roar___3", "fmri_pp_scans_roar___4","fmri_pp_scans_roar___5","fmri_pp_scans_roar___6")])
+
+# count the number of runs per subject with less than 20% of interest_TRs censored
+run_count <- censor_sum %>% group_by(id) %>% summarise(n_run_good = sum(p_censor_interest < 20))
+
+# merge two data frames by id, keeping all sub who attended V6
+scanning_v6<-merge(x=scanning_v6,y=run_count,by="id",all.x=TRUE)
+
+# make included variable that indicates if subject was included in analyses (1=yes, 0=no), according to index dataframe
+scanning_v6$included <- as.integer(scanning_v6$id %in% index$id)
+
+# indicate why subject was excluded
+scanning_v6$exc_rationale <- NA
+
+for (i in 1:nrow(scanning_v6)) {
+  if(scanning_v6$id[i] == 69){
+    scanning_v6$exc_rationale[i] <- "data issue"
+  }
+  else if(scanning_v6$fmri_pp_complete[i] == 0) {
+    scanning_v6$exc_rationale[i] <- "withdrew from MRI"
+  }
+  else if(scanning_v6$n_run_complete[i] <3) {
+    scanning_v6$exc_rationale[i] <- "withdrew <3 runs"
+  }
+  else if(scanning_v6$n_run_good[i] < 3) {
+    scanning_v6$exc_rationale[i] <- "motion"
+  }
+  else if(scanning_v6$id[i] == 105 | scanning_v6$id[i] == 119) {
+    scanning_v6$exc_rationale[i] <- "FOV"
+  }
+}
+
+
+length(which(scanning_v6$fmri_pp_complete == 1))
+length(which(scanning_v6$exc_rationale == "data issue"))
+length(which(scanning_v6$exc_rationale == "withdrew from MRI"))
+length(which(scanning_v6$exc_rationale == "withdrew <3 runs"))
+length(which(scanning_v6$exc_rationale == "motion"))
+length(which(scanning_v6$exc_rationale == "FOV"))
+
+```
+
+```{r set pre-MRI fullness variable }
+
+V6$pre_mri_ff <- NA
+
+for (i in 1:nrow(V6)) {
+  if(!is.na(V6$ff_postmri_snack2[i])){
+    V6$pre_mri_ff[i] <- V6$ff_postmri_snack2[i]
+  }
+  else if(!is.na(V6$ff_postmri_snack[i])) {
+    V6$pre_mri_ff[i] <- V6$ff_postmri_snack[i]
+  }
+  else if(!is.na(V6$ff_premri_snack[i])) {
+  V6$pre_mri_ff[i] <- V6$ff_premri_snack[i]
+  }
+}
+
+#subset
+pre_mri_ff <- V6[,c("id","pre_mri_ff")]
+
+```
+
+```{r average post-scan ratings }
+# Conditions:
+# A = HighLarge
+# B = HighSmall
+# C = LowLarge
+# D = LowSmall
+# E = OfficeLarge
+# F = OfficeSmall
+
+# compute average liking ratings for each condition
+# note: in grep, ^ indicates the start of the string, $ indicates the end, .+ gets everything in between
+V6$like_HighLarge <- rowMeans(V6[grep('^mrivas_a.+like$', names(V6))])
+V6$like_HighSmall <- rowMeans(V6[grep('^mrivas_b.+like$', names(V6))])
+V6$like_LowLarge <- rowMeans(V6[grep('^mrivas_c.+like$', names(V6))])
+V6$like_LowSmall <- rowMeans(V6[grep('^mrivas_d.+like$', names(V6))])
+V6$like_OfficeLarge <- rowMeans(V6[grep('^mrivas_e.+like$', names(V6))])
+V6$like_OfficeSmall <- rowMeans(V6[grep('^mrivas_f.+like$', names(V6))])
+
+# compute average liking ratings by PS/ED/cuetype
+V6$like_HighED <- rowMeans(V6[grep('^mrivas_a.+like$|mrivas_b.+like$', names(V6))])
+V6$like_LowED <- rowMeans(V6[grep('^mrivas_c.+like$|mrivas_d.+like$', names(V6))])
+V6$like_LargePS <- rowMeans(V6[grep('^mrivas_a.+like$|mrivas_c.+like$', names(V6))])
+V6$like_SmallPS <- rowMeans(V6[grep('^mrivas_b.+like$|mrivas_d.+like$', names(V6))])
+V6$like_Office <- rowMeans(V6[grep('^mrivas_e.+like$|mrivas_f.+like$', names(V6))])
+V6$like_food <- rowMeans(V6[grep('^mrivas_a.+like$|mrivas_b.+like$|^mrivas_c.+like$|mrivas_d.+like$', names(V6))])
+
+# compute average fullness ratings for each condition
+V6$full_HighLarge <- rowMeans(V6[grep('^mrivas_a.+full$', names(V6))])
+V6$full_HighSmall <- rowMeans(V6[grep('^mrivas_b.+full$', names(V6))])
+V6$full_LowLarge <- rowMeans(V6[grep('^mrivas_c.+full$', names(V6))])
+V6$full_LowSmall <- rowMeans(V6[grep('^mrivas_d.+full$', names(V6))])
+
+#subset liking and fullness data
+image_ratings <- V6[,grep("id|^like|^full", colnames(V6))]
+
+```
+
+```{r concat dataframes and subset}
+
+# subset anthro dataframe
+anthro_data_reduced <- anthro_data[,c("id","sex","age_yr", "race", "risk_status_mom",
+                                     "bmi_percentile", "FMI",
+                                     "income_recode","mom_edu_recode", 'mom_bmi', 'mom_bmi_method')]
+
+# merge first to include subjects in scanning_v6 --- this reflects children who attended visit 6
+concat <- merge(x = scanning_v6, y = anthro_data_reduced, by = "id", all.x = TRUE)
+concat <- merge(x = concat, y = mot_sum, by = "id", all.x = TRUE)
+concat <- merge(x = concat, y = image_ratings, by = "id", all.x = TRUE)
+concat <- merge(x = concat, y = pre_mri_ff, by = "id", all.x = TRUE)
+
+# copy 'concat' to a new dataframe for subsequent steps so that 'concat' remains untouched
+attended_df <- concat
+
+# isolate subjects who were scanned on V6
+scanned_df <- concat[concat$fmri_pp_complete == 1, ]
+
+# isolate subjects included in imaging analyses
+analyzed_df <- setDT(concat)[id %chin% index$id]
+
+```
+
+```{r make table: included vs excluded}
+
+## note: if want to include all children who attended V6 --- can use 'attended_df' df
+## note: if want to include all children who were scanned --- can use 'scanned_df' df 
+
+# prepare variables
+attended_df$risk_status_mom <- factor(attended_df$risk_status_mom, levels=c(0,1,2),
+         labels=c("Low Risk", 
+                  "High Risk",
+                  "Neither"))
+
+attended_df$included <- factor(attended_df$included, levels=c(0,1),
+         labels=c("Excluded", 
+                  "Included"))
+
+attended_df$sex <- factor(attended_df$sex, levels=c(0,1),
+                            labels=c("Male", 
+                                "Female"))
+
+attended_df$race <- factor(attended_df$race, levels=c(0,1,2,3,4),
+                            labels=c("White", 
+                                "American Indian/Alaskan Native",
+                                "Asian",
+                                "Black/African American",
+                                "Hawaiian/Pacific Islander"))
+
+label(attended_df$sex) <- "Sex"
+label(attended_df$race) <- "Race"
+label(attended_df$risk_status_mom)  <- "Risk Status"
+label(attended_df$age_yr) <- "Age, yrs"
+label(attended_df$income_recode) <- "Family Income"
+label(attended_df$mom_edu_recode) <- "Maternal Education"
+label(attended_df$FMI) <- "Fat mass index"
+
+
+# generate table
+table1(~ risk_status_mom + sex + age_yr + race + income_recode + mom_edu_recode + FMI| included, data=attended_df)
+```
+
+```{r compare: included vs excluded}
+
+# age
+t.test(attended_df$age ~ attended_df$included, var.equal = TRUE)
+
+# sex
+chisq.test(attended_df$included, attended_df$sex, correct=TRUE)
+
+# maternal education
+chisq.test(attended_df$included, attended_df$mom_edu_recode, correct=TRUE)
+
+# income
+chisq.test(attended_df$included, attended_df$income_recode, correct=TRUE)
+
+# mom bmi
+t.test(attended_df$mom_bmi ~ attended_df$included, var.equal = TRUE)
+
+# risk
+chisq.test(attended_df$included, attended_df$risk_status_mom, correct=TRUE)
+
+# FMI
+t.test(attended_df$FMI ~ attended_df$included, var.equal = TRUE)
+
+
+
+```
+
+```{r make table: participant characteristics risk}
+
+# prepare variables for table
+analyzed_df$dxa_subtotal_perc_fat <- as.numeric(analyzed_df$dxa_subtotal_perc_fat)
+
+analyzed_df$sex <- factor(analyzed_df$sex, levels=c(0,1),
+                            labels=c("Male", 
+                                "Female"))
+
+analyzed_df$risk_status_mom <- factor(analyzed_df$risk_status_mom, levels=c(0,1,2),
+         labels=c("Low Risk", 
+                  "High Risk",
+                  "Neither"))
+
+# set labels
+label(analyzed_df$sex) <- "Sex"
+label(analyzed_df$risk_status_mom)  <- "Risk Status"
+label(analyzed_df$bmi_percentile)     <- "BMI percentile"
+label(analyzed_df$FMI) <- "Fat mass index"
+label(analyzed_df$age_yr) <- "Age, yrs"
+label(analyzed_df$income_recode) <- "Family Income"
+label(analyzed_df$mom_edu_recode) <- "Maternal Education"
+label(analyzed_df$mom_bmi) <- "Maternal BMI"
+label(analyzed_df$pre_mri_ff)     <- "Pre-MRI fullness"
+label(analyzed_df$n_run_good)     <- "Number of analyzed runs"
+label(analyzed_df$fd_avg_allruns)     <- "Average framewise displacement"
+
+
+# generate table
+table1(~ sex + age_yr + bmi_percentile + FMI + income_recode + mom_edu_recode + mom_bmi + pre_mri_ff + n_run_good + fd_avg_allruns| risk_status_mom, data=analyzed_df)
+
+# count measured vs. reported BMI
+table(analyzed_df$mom_bmi_method)
+
+
+```
+
+
+```{r compare: by risk}
+
+# age
+t.test(analyzed_df$age ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+# sex
+t.test(analyzed_df$sex ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+# maternal education
+chisq.test(analyzed_df$risk_status_mom, analyzed_df$mom_edu_recode, correct=TRUE)
+
+# income
+chisq.test(analyzed_df$risk_status_mom, analyzed_df$income_recode, correct=TRUE)
+
+# mom bmi
+t.test(analyzed_df$mom_bmi ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+# pre-mri fullness
+t.test(analyzed_df$pre_mri_ff ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+# good run count
+t.test(analyzed_df$n_run_good ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+# average motion
+t.test(analyzed_df$fd_avg_allruns ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+
+```
+
+
+```{r plot cluster correlation }
+
+# import covariate files used in analyses
+ttest.covariates <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/ttest-covariates.txt")
+
+# import and format cluster beta extractions
+EDcon_bodyfat_beta <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/clust_betas-High-Low_allPS_bodyfat.txt")
+EDcon_bodyfat_beta<-EDcon_bodyfat_beta[!(EDcon_bodyfat_beta$File=="File"),] # remove non-data rows
+EDcon_bodyfat_beta = subset(EDcon_bodyfat_beta, select = -c(Sub.brick, File) ) # remove sub.brick and File column
+colnames(EDcon_bodyfat_beta)[1] <- "EDcon_clust1" #set column name
+EDcon_bodyfat_beta$Subj <- index$Subj # add subject ID
+EDcon_bodyfat_beta$EDcon_clust1 <- as.numeric(full$EDcon_clust1) # change datatype to numeric
+
+# add bodyfat % to EDcon_bodyfat_beta 
+combined <- merge(EDcon_bodyfat_beta, ttest.covariates, by="Subj")
+
+# graph relationship between mid temporal gyrus cluster and body fat %
+ggplot(combined, aes(x=dxa_total_body_perc_fat, y=EDcon_clust1)) + 
+  geom_point()+
+  geom_smooth(method=lm, formula = y ~ x, color="black") +
+  labs(title="L mid temporal gyrus vs. body fat %",
+       x="Body fat %", y = "High - Low Energy Density Beta") + 
+  theme(axis.text.x = element_text(size=15)) +
+  theme(axis.text.y = element_text(size=15)) +
+  theme(axis.title=element_text(size=15,face="bold"))
+
+
+```
