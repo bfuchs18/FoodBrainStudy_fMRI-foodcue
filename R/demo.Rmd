@@ -336,33 +336,3 @@ t.test(analyzed_df$n_run_good ~ analyzed_df$risk_status_mom, var.equal = TRUE)
 t.test(analyzed_df$fd_avg_allruns ~ analyzed_df$risk_status_mom, var.equal = TRUE)
 
 ```
-
-
-```{r plot cluster correlation }
-
-# import covariate files used in analyses
-ttest.covariates <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/ttest-covariates.txt")
-
-# import and format cluster beta extractions
-EDcon_bodyfat_beta <- read.delim("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/a-bari/00_PennState/Projects/Foodcue-paper1/data/clust_betas-High-Low_allPS_bodyfat.txt")
-EDcon_bodyfat_beta<-EDcon_bodyfat_beta[!(EDcon_bodyfat_beta$File=="File"),] # remove non-data rows
-EDcon_bodyfat_beta = subset(EDcon_bodyfat_beta, select = -c(Sub.brick, File) ) # remove sub.brick and File column
-colnames(EDcon_bodyfat_beta)[1] <- "EDcon_clust1" #set column name
-EDcon_bodyfat_beta$Subj <- index$Subj # add subject ID
-EDcon_bodyfat_beta$EDcon_clust1 <- as.numeric(full$EDcon_clust1) # change datatype to numeric
-
-# add bodyfat % to EDcon_bodyfat_beta 
-combined <- merge(EDcon_bodyfat_beta, ttest.covariates, by="Subj")
-
-# graph relationship between mid temporal gyrus cluster and body fat %
-ggplot(combined, aes(x=dxa_total_body_perc_fat, y=EDcon_clust1)) + 
-  geom_point()+
-  geom_smooth(method=lm, formula = y ~ x, color="black") +
-  labs(title="L mid temporal gyrus vs. body fat %",
-       x="Body fat %", y = "High - Low Energy Density Beta") + 
-  theme(axis.text.x = element_text(size=15)) +
-  theme(axis.text.y = element_text(size=15)) +
-  theme(axis.title=element_text(size=15,face="bold"))
-
-
-```
