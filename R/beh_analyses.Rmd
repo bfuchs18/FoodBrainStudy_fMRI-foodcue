@@ -1,0 +1,121 @@
+---
+title: "behavioral"
+author: "baf44"
+date: "1/23/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(lme4)
+library(lmerTest) # need this to get p-values with anova()
+
+
+# set project directory
+projectdir = getwd()
+
+beh <- read.delim(file.path(projectdir, "data/compiled/task-foodcue_summary.tsv"))
+
+# source Alaina's functions
+source(file.path(projectdir, "R/barplot_functions.R"))
+
+```
+
+```{r prep dataset}
+# Add Portion and Type Columns
+beh$portion_size <- ifelse(grepl("Large", beh$cond), "Large", "Small")
+beh$cue_type <- ifelse(grepl("High", beh$cond), "HighED", 
+                       ifelse(grepl("Low", beh$cond), "LowED", "Office"))
+
+```
+
+```{r analyses - food only}
+
+# subset food conditions only
+beh_food_NAs <- beh[beh$cue_type == "HighED" | beh$cue_type == "LowED",]
+
+# remove NAs
+beh_food <- beh_food_NAs[!is.na(beh_food_NAs$p_want_of_resp),]
+
+# Food PS x Food ED ANOVA
+p_want_mixed = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_food)
+anova(p_want_mixed)
+
+# get predicted response after adjusting for run
+beh_food$predict_p_want <- predict(p_want_mixed, type="response")
+
+#plot with ggplot
+ggplot(data=beh_food, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
+  geom_bar(stat="identity", position=position_dodge())+
+  scale_fill_brewer(palette="Paired")+
+  theme_minimal()
+
+# violin plot 
+plot <- ggplot(beh_food, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
+  geom_violin(trim=FALSE)+
+ # geom_signif(stat = "identity", inherit.aes = FALSE,
+   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
+  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
+  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(values = c("lightgrey", "grey35")) +
+  labs(title="N-Back Task",
+       x="cue_type",
+       y = "p_want") +
+ # theme_pubr(base_size = 16) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank())
+
+# barplot with alaina's function
+ps_by_ed <- data.frame(beh_food$portion_size, beh_food$cue_type)
+mean_cond = means.function.na(beh_food, beh_food$p_want_of_resp, ps_by_ed) # get mean ps and ed
+se_cond = se.function.na(beh_food, beh_food$p_want_of_resp, ps_by_ed)
+
+beh_food$portion_size <- as.factor(beh_food$portion_size)
+bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_food$portion_size)
+
+```
+
+
+```{r analyses - all conditions}
+
+# remove NAs
+beh_clean <- beh[!is.na(beh$p_want_of_resp),]
+
+# Food PS x Food ED ANOVA
+p_want_mixed_all = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_clean)
+anova(p_want_mixed_all)
+
+# get predicted response after adjusting for run
+beh_clean$predict_p_want <- predict(p_want_mixed_all, type="response")
+
+#plot with ggplot
+ggplot(data=beh_clean, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
+  geom_bar(stat="identity", position=position_dodge())+
+  scale_fill_brewer(palette="Paired")+
+  theme_minimal()
+
+# violin plot 
+plot2 <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
+  geom_violin(trim=FALSE)+
+ # geom_signif(stat = "identity", inherit.aes = FALSE,
+   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
+  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
+  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(values = c("lightgrey", "grey35")) +
+  labs(title="Percent want",
+       x="cue_type",
+       y = "p_want") +
+ # theme_pubr(base_size = 16) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank())
+
+# barplot with alaina's function
+ps_by_type <- data.frame(beh_clean$portion_size, beh_clean$cue_type)
+mean_cond = means.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type) # get mean ps and ed
+se_cond = se.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type)
+
+beh_clean$portion_size <- as.factor(beh_clean$portion_size)
+bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_clean$portion_size)
+
+```
