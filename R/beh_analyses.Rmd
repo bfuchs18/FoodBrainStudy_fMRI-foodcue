@@ -15,6 +15,7 @@ library(lmerTest) # need this to get p-values with anova()
 library(plyr)
 library(maditr)
 library(ggplot2)
+library(rstatix)
 
 # import behavioral data
 beh <- read.delim("data/databases/task-foodcue_summary.tsv")
@@ -156,6 +157,50 @@ avg_ratings <- image_ratings[,grep("id|^like|^full", colnames(image_ratings))]
 
 ```
 
+```{r prep beh datasets}
+# wide to long -- liking ratings 
+like_long <- reshape2::melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("like_HighLarge","like_HighSmall", "like_LowLarge", "like_LowSmall", "like_OfficeLarge", "like_OfficeSmall"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_liking"
+)
+
+# wide to long -- fullness ratings
+full_long <- reshape2::melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("full_HighLarge","full_LowLarge", "full_HighSmall", "full_LowSmall"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_fullness"
+)
+
+# Make portion size and energy density columns
+like_long$portion_size <- ifelse(grepl("Large", like_long$cond), "Large", "Small")
+like_long$type <- ifelse(grepl("High", like_long$condition), "HighED", ifelse(grepl("Low", like_long$condition), "LowED", "Office"))
+full_long$portion_size <- ifelse(grepl("Large", full_long$condition), "Large", "Small")
+full_long$type <- ifelse(grepl("High", full_long$condition), "High", "Low")
+
+# wide to long -- fullness difference score
+full_diff_ratings_long <- melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("full_LvS_overall","full_LvS_hed", "full_LvS_led"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="LvS_fullness"
+)
+```
+
 # Prepare in-scanner behavior
 ```{r prep beh dataset}
 # remove condition letter (A-F) from block_proc 
@@ -262,6 +307,46 @@ ggplot(beh_pwant_trait_long, aes(x=variable, y=value)) +
 
 ```
 
+```{r avg liking and fullness: descriptives and plot, include=TRUE}
+# descriptive stats 
+like_long %>%
+  group_by(portion_size, type) %>%
+  get_summary_stats(avg_liking, type = "mean_sd")
+
+full_long %>%
+  group_by(portion_size, type) %>%
+  get_summary_stats(avg_fullness, type = "mean_sd")
+
+# boxplot: average liking
+ggplot(like_long, aes(x=portion_size, y=avg_liking, fill=type)) +
+  geom_boxplot() 
+
+# boxplot: average fullness (food conditions only)
+ggplot(full_long, aes(x=portion_size, y=avg_fullness, fill=type)) +
+  geom_boxplot() 
+
+# violin plot: average liking
+ggplot(like_long, aes(x = condition, y = avg_liking, fill = type)) + 
+  geom_violin(aes(fill = type), trim = FALSE) +
+  #geom_boxplot(width = 0.1) +
+  theme_classic() +
+  geom_dotplot(binaxis = "y",
+            stackdir = "center",
+            dotsize = 0.5) +
+  theme(legend.position = "none")
+
+# violin plot: average fullness (food conditions only)
+ggplot(full_long, aes(x = condition, y = avg_fullness)) + 
+  geom_violin(aes(fill = portion_size), trim = FALSE) +
+  #geom_boxplot(width = 0.1) +
+  theme_classic() +
+  geom_dotplot(binaxis = "y",
+            stackdir = "center",
+            dotsize = 0.5) +
+  theme(legend.position = "none")
+
+```
+
 ```{r within-person p_want descriptives, include=TRUE}
 
 # Within-person variability: the dispersion of each individual’s score around person’s own average (person mean)
@@ -357,42 +442,9 @@ full_byproc <- ggplot(full_byproc_long, aes(x=proc, y=avg_full, fill=cond)) +
 full_byproc
 ```
 
-```{r post-scan rating violin plots}
-#### average fullness ratings ####
-# wide to long
-full_ratings_long <- melt(avg_ratings,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("full_HighLarge","full_LowLarge", "full_Large", "full_HighSmall", "full_LowSmall", "full_Small"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="avg_fullness"
-)
-
-# plot
-ggplot(full_ratings_long, aes(x = condition, y = avg_fullness)) + 
-  geom_violin(aes(fill = condition), trim = FALSE) +
-  geom_boxplot(width = 0.1) +
-  theme_classic() +
-  geom_dotplot(binaxis = "y",
-            stackdir = "center",
-            dotsize = 0.5) +
-  theme(legend.position = "none")
+```{r Difference score violin plots}
 
 #### large - small fullness ratings #### 
-# wide to long
-full_diff_ratings_long <- melt(avg_ratings,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("full_LvS_overall","full_LvS_hed", "full_LvS_led"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="LvS_fullness"
-)
 
 # plot
 ggplot(full_diff_ratings_long, aes(x = condition, y = LvS_fullness)) + 
@@ -404,28 +456,6 @@ ggplot(full_diff_ratings_long, aes(x = condition, y = LvS_fullness)) +
             dotsize = 0.5) +
   theme(legend.position = "none")
 
-#### large and small liking ratings #### 
-# wide to long
-like_ratings_long <- melt(avg_ratings,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("like_LargePS","like_SmallPS"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="avg_liking"
-)
-
-# plot
-ggplot(like_ratings_long, aes(x = condition, y = avg_liking)) + 
-  geom_violin(aes(fill = condition), trim = FALSE) +
-  geom_boxplot(width = 0.1) +
-  theme_classic() +
-  geom_dotplot(binaxis = "y",
-            stackdir = "center",
-            dotsize = 0.5) +
-  theme(legend.position = "none")
 ```
 
 # Analyses
@@ -575,49 +605,6 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 ```
 
 ``` {r post-scan rating analyses}
-# wide to long -- liking ratings
-like_long <- reshape2::melt(analyzed_df,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("like_HighLarge","like_HighSmall", "like_LowLarge", "like_LowSmall"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="avg_liking"
-)
-# wide to long -- fullness ratings
-full_long <- reshape2::melt(analyzed_df,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("full_HighLarge","full_LowLarge", "full_HighSmall", "full_LowSmall"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="avg_fullness"
-)
-
-# Make portion size and energy density columns
-like_long$portion_size <- ifelse(grepl("Large", like_long$cond), "Large", "Small")
-like_long$ed <- ifelse(grepl("High", like_long$cond), "High", "Low")
-full_long$portion_size <- ifelse(grepl("Large", full_long$cond), "Large", "Small")
-full_long$ed <- ifelse(grepl("High", full_long$cond), "High", "Low")
-
-# boxplot
-ggplot(like_long, aes(x=portion_size, y=avg_liking, fill=ed)) +
-  geom_boxplot() 
-ggplot(full_long, aes(x=portion_size, y=avg_fullness, fill=ed)) +
-  geom_boxplot() 
-
-# descriptive stats 
-like_long %>%
-  group_by(portion_size, ed) %>%
-  get_summary_stats(avg_liking, type = "mean_sd")
-
-full_long %>%
-  group_by(portion_size, ed) %>%
-  get_summary_stats(avg_fullness, type = "mean_sd")
 
 # repeated measures anovas (ed * ps)
 liking.aov <- anova_test(
