@@ -9,6 +9,7 @@
 # load packages
 library(haven)
 library(data.table)
+library(haven)
 
 # set project directory
 projectdir = getwd()
@@ -62,7 +63,7 @@ censor_reduced <- censor_sum[,c("id", "run", "p_censor_interest")]
 ############ Merge dataframes ###########
 
 # create database will all subjects in anthro_data_reduced
-concat <- merge(x = anthro_data_reduced, y = V6_reduced, by = "id", all.x = TRUE)
+concat <- merge(x = anthro_data_reduced, y = V6_ff, by = "id", all.x = TRUE)
 concat <- merge(x = concat, y = scanning_reduced, by = "id", all.x = TRUE)
 compiled <- merge(x = concat, y = mot_sum_reduced, by = "id", all.x = TRUE)
 
@@ -75,6 +76,6 @@ compiled$included <- as.integer(compiled$id %in% index$id)
 compiled <- setDT(compiled)[id %chin% V6$id]
 
 ############ Export ##########
-write.csv(attended_df, file.path(projectdir,'data/compiled/demographics_compiled.csv'), row.names = FALSE)
+write.csv(compiled, file.path(projectdir,'data/compiled/demographics_compiled.csv'), row.names = FALSE)
 write.csv(image_ratings, file.path(projectdir,'data/compiled/fmri_image_ratings.csv'), row.names = FALSE)
 write.csv(censor_reduced, file.path(projectdir,'data/compiled/censorp_byrun.csv'), row.names = FALSE)
