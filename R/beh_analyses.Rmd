@@ -235,7 +235,7 @@ beh_pwant_trait_long <- melt(beh_pwant_trait, id.vars=c("id"))
 ```
 
 # Descriptive stats and plots
-```{r avg wanting: descriptives and plot, include=TRUE}
+```{r avg p_want: descriptives and plot, include=TRUE}
 
 # get descriptive stats for average (trait) wanting scores
 ## average wanting scores reflect each subjects percent wanting for each condition, averaged across all runs
@@ -357,6 +357,77 @@ full_byproc <- ggplot(full_byproc_long, aes(x=proc, y=avg_full, fill=cond)) +
 full_byproc
 ```
 
+```{r post-scan rating violin plots}
+#### average fullness ratings ####
+# wide to long
+full_ratings_long <- melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("full_HighLarge","full_LowLarge", "full_Large", "full_HighSmall", "full_LowSmall", "full_Small"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_fullness"
+)
+
+# plot
+ggplot(full_ratings_long, aes(x = condition, y = avg_fullness)) + 
+  geom_violin(aes(fill = condition), trim = FALSE) +
+  geom_boxplot(width = 0.1) +
+  theme_classic() +
+  geom_dotplot(binaxis = "y",
+            stackdir = "center",
+            dotsize = 0.5) +
+  theme(legend.position = "none")
+
+#### large - small fullness ratings #### 
+# wide to long
+full_diff_ratings_long <- melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("full_LvS_overall","full_LvS_hed", "full_LvS_led"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="LvS_fullness"
+)
+
+# plot
+ggplot(full_diff_ratings_long, aes(x = condition, y = LvS_fullness)) + 
+  geom_violin(aes(fill = condition), trim = FALSE) +
+  geom_boxplot(width = 0.1) +
+  theme_classic() +
+  geom_dotplot(binaxis = "y",
+            stackdir = "center",
+            dotsize = 0.5) +
+  theme(legend.position = "none")
+
+#### large and small liking ratings #### 
+# wide to long
+like_ratings_long <- melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("like_LargePS","like_SmallPS"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_liking"
+)
+
+# plot
+ggplot(like_ratings_long, aes(x = condition, y = avg_liking)) + 
+  geom_violin(aes(fill = condition), trim = FALSE) +
+  geom_boxplot(width = 0.1) +
+  theme_classic() +
+  geom_dotplot(binaxis = "y",
+            stackdir = "center",
+            dotsize = 0.5) +
+  theme(legend.position = "none")
+```
+
 # Analyses
 ```{r p_want correlations between conditions}
 
@@ -414,100 +485,50 @@ ggplot(beh_HL, aes(x = run, y = p_want_of_resp, color = as.factor(id))) +
 
 ```
 
-```{r trying to graph behavior by run}
+``` {r p_want analyses - all conditions}
 
+# remove NAs
+beh_clean <- beh[!is.na(beh$p_want_of_resp),]
 
-#goal: line plot of wanting by run (x-axis) for each condition, 1 line per subject 
-## i.e. -- each subject has 1 line per condition (condition is indicated by color)
+# portion size (large, small) x cue type (high, low, office) mixed model
+p_want_mixed_all = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_clean)
+anova(p_want_mixed_all)
 
-beh_1 <- beh[beh$id == "1", c("id", "cond", "p_want_of_resp", "run")]
-beh_2 <- beh[beh$id == "2", c("id", "cond", "p_want_of_resp", "run")]
-beh_12 <- beh[(beh$id == "1" | beh$id == "2"), c("id", "cond", "p_want_of_resp", "run")]
+# get predicted response after adjusting for run
+beh_clean$predict_p_want <- predict(p_want_mixed_all, type="response")
 
-ggplot(data = beh) +
-  geom_line(aes(x = run, y = p_want_of_resp, group = cond, col = cond))
-
-# for 1 sub
-ggplot(beh_1, aes(x = run, y = p_want_of_resp, color = cond)) +
-  geom_line(data = beh_1) + position_jitter(height = .2)
-
-beh_HL <- beh[beh$cond == "HighLarge", c("id", "cond", "p_want_of_resp", "run")]
-
-
-ggplot(id, aes(x = year, y = health_exp_total, color = cond)) +
-  geom_line(aes(group = id)) +
-  geom_line(data = gd)
-
-###~~~~~~~~~~~
-# https://psyteachr.github.io/introdataviz/multi-part-plots.html
-beh_HL <- beh[(beh$cond == "HighLarge"), c("id", "cond", "p_want_of_resp", "run")]
-beh_LL <- beh[(beh$cond == "LowLarge"), c("id", "cond", "p_want_of_resp", "run")]
-beh_Large <- beh[(beh$cond == "HighLarge" | beh$cond == "LowLarge"), c("id", "cond", "p_want_of_resp", "run")]
-
-ggplot(beh, aes(x = run, y = p_want_of_resp, 
-                     group = cond, shape = cond)) +
-  # adds raw data points in each condition
-  geom_point(aes(colour = cond),alpha = .2) +
-  # add lines to connect each participant's data points across conditions
-  geom_line(aes(group = id, colour = cond), alpha = .2) +
-  # add data points representing cell means
-  stat_summary(fun = "mean", geom = "point", size = 2, colour = "black") +
-  # add lines connecting cell means by condition
-  stat_summary(fun = "mean", geom = "line", colour = "black") +
-  # add errorbars to cell means
-  stat_summary(fun.data = "mean_se", geom = "errorbar", 
-               width = .2, colour = "black") +
-  # change colours and theme
-  scale_color_brewer(palette = "Dark2") +
+#plot with ggplot
+ggplot(data=beh_clean, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
+  geom_bar(stat="identity", position=position_dodge())+
+  scale_fill_brewer(palette="Paired")+
   theme_minimal()
 
+# violin plot 
+plot2 <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
+  geom_violin(trim=FALSE)+
+ # geom_signif(stat = "identity", inherit.aes = FALSE,
+   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
+  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
+  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(values = c("lightgrey", "grey35")) +
+  labs(title="Percent want",
+       x="cue_type",
+       y = "p_want") +
+ # theme_pubr(base_size = 16) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank())
 
+# barplot with alaina's function
+ps_by_type <- data.frame(beh_clean$portion_size, beh_clean$cue_type)
+mean_cond = means.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type) # get mean ps and ed
+se_cond = se.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type)
 
-
-# looks as expected using beh_HL
-ggplot(beh_HL, aes(x = run, y = p_want_of_resp, 
-                     group = cond, shape = cond)) +
-  # adds raw data points in each condition
-  geom_point(aes(colour = cond),alpha = .2) +
-  # add lines to connect each participant's data points across conditions
-  geom_line(aes(group = id, colour = cond), alpha = .2)
-
-ggplot(beh_LL, aes(x = run, y = p_want_of_resp, 
-                     group = cond, shape = cond)) +
-  # adds raw data points in each condition
-  geom_point(aes(colour = cond),alpha = .2) +
-  # add lines to connect each participant's data points across conditions
-  geom_line(aes(group = id, colour = cond), alpha = .2)
-
-
-### THIS WORKS BETTER??? Colors are confusing bc of overlap 
-IDCondition <- paste(beh$id, beh$cond)
-ggplot(beh, aes(x=run, y=p_want_of_resp, group=IDCondition)) +
-  geom_point(size=.5, aes(colour=cond), alpha=0.3)+
-  geom_line(size=1, alpha=0.05, aes(colour = cond))+
-  scale_y_continuous(limits=c(0, 1))+ 
-  xlab('run') +
-  ylab('p_want') +
-  guides(colour = guide_legend(override.aes = list(alpha = 1))) +
-  theme_bw()
-
-beh_food_NAs <- beh[beh$cue_type == "HighED" | beh$cue_type == "LowED",]
-IDCondition_food <- paste(beh_food_NAs$id, beh_food_NAs$cond)
-
-ggplot(beh_food_NAs, aes(x=run, y=p_want_of_resp, group=IDCondition_food)) +
-  geom_point(size=.5, aes(colour=cond), alpha=0.3)+
-  geom_line(size=1, alpha=0.5, aes(colour = cond))+ #alpha is opacity
-  scale_color_manual(values=c("red", "yellow", "blue", "green") ) +
-  scale_y_continuous(limits=c(0, 1))+ 
-  xlab('run') +
-  ylab('p_want') +
-  guides(colour = guide_legend(override.aes = list(alpha = 1))) +
-  theme_bw()
+beh_clean$portion_size <- as.factor(beh_clean$portion_size)
+bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_clean$portion_size)
 
 ```
 
-
-```{r analyses - food only}
+```{r p_want analyses - food only}
 
 # subset food conditions only
 beh_food_NAs <- beh[beh$cue_type == "HighED" | beh$cue_type == "LowED",]
@@ -553,46 +574,69 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 
 ```
 
+``` {r post-scan rating analyses}
+# wide to long -- liking ratings
+like_long <- reshape2::melt(analyzed_df,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("like_HighLarge","like_HighSmall", "like_LowLarge", "like_LowSmall"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_liking"
+)
+# wide to long -- fullness ratings
+full_long <- reshape2::melt(analyzed_df,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("full_HighLarge","full_LowLarge", "full_HighSmall", "full_LowSmall"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_fullness"
+)
 
-```{r analyses - all conditions}
+# Make portion size and energy density columns
+like_long$portion_size <- ifelse(grepl("Large", like_long$cond), "Large", "Small")
+like_long$ed <- ifelse(grepl("High", like_long$cond), "High", "Low")
+full_long$portion_size <- ifelse(grepl("Large", full_long$cond), "Large", "Small")
+full_long$ed <- ifelse(grepl("High", full_long$cond), "High", "Low")
 
-# remove NAs
-beh_clean <- beh[!is.na(beh$p_want_of_resp),]
+# boxplot
+ggplot(like_long, aes(x=portion_size, y=avg_liking, fill=ed)) +
+  geom_boxplot() 
+ggplot(full_long, aes(x=portion_size, y=avg_fullness, fill=ed)) +
+  geom_boxplot() 
 
-# portion size (large, small) x cue type (high, low, office) mixed model
-p_want_mixed_all = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_clean)
-anova(p_want_mixed_all)
+# descriptive stats 
+like_long %>%
+  group_by(portion_size, ed) %>%
+  get_summary_stats(avg_liking, type = "mean_sd")
 
-# get predicted response after adjusting for run
-beh_clean$predict_p_want <- predict(p_want_mixed_all, type="response")
+full_long %>%
+  group_by(portion_size, ed) %>%
+  get_summary_stats(avg_fullness, type = "mean_sd")
 
-#plot with ggplot
-ggplot(data=beh_clean, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
-  geom_bar(stat="identity", position=position_dodge())+
-  scale_fill_brewer(palette="Paired")+
-  theme_minimal()
+# repeated measures anovas (ed * ps)
+liking.aov <- anova_test(
+  data = like_long, dv = avg_liking, wid = id,
+  within = c(ed, portion_size)
+  )
+get_anova_table(liking.aov)
 
-# violin plot 
-plot2 <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
-  geom_violin(trim=FALSE)+
- # geom_signif(stat = "identity", inherit.aes = FALSE,
-   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
-  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
-  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
-  scale_fill_manual(values = c("lightgrey", "grey35")) +
-  labs(title="Percent want",
-       x="cue_type",
-       y = "p_want") +
- # theme_pubr(base_size = 16) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank())
+fullness.aov <- anova_test(
+  data = full_long, dv = avg_fullness, wid = id,
+  within = c(ed, portion_size)
+  )
+get_anova_table(fullness.aov)
 
-# barplot with alaina's function
-ps_by_type <- data.frame(beh_clean$portion_size, beh_clean$cue_type)
-mean_cond = means.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type) # get mean ps and ed
-se_cond = se.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type)
+# correlation between difference scores
 
-beh_clean$portion_size <- as.factor(beh_clean$portion_size)
-bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_clean$portion_size)
+cor.test(analyzed_df$full_LvS_overall, analyzed_df$like_LvS_overall, use = "complete.obs")
+
+cor.test(analyzed_df$full_HvL_overall, analyzed_df$like_HvL_overall, use = "complete.obs")
+# the more full a child reports for high vs. low ED foods, the more they report liking high vs. low ED foods
 
 ```
