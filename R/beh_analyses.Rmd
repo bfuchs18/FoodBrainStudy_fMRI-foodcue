@@ -16,13 +16,23 @@ library(plyr)
 library(maditr)
 library(ggplot2)
 library(rstatix)
+library(dplyr)
 
 # import behavioral data
-beh <- read.delim("data/databases/task-foodcue_summary.tsv")
-image_ratings <- read.csv("data/compiled/fmri_image_ratings.csv")
+beh_all <- read.delim("data/databases/task-foodcue_summary.tsv")
+image_ratings_all <- read.csv("data/compiled/fmri_image_ratings.csv")
 
 # source Alaina's functions
 source("R/barplot_functions.R")
+
+# import index file that specifies children included in analyses
+index_wide <- read.table("data/databases/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
+names(index) <- "id" # add column name
+
+# subset to those in analyses
+beh <- setDT(beh_all)[id %chin% index$id] # subset dataframes to only include children in fmri analyses
+image_ratings <- setDT(image_ratings_all)[id %chin% index$id] # subset dataframes to only include children in fmri analyses
 
 ```
 
@@ -213,6 +223,57 @@ beh$cue_type <- ifelse(grepl("High", beh$cond), "HighED",
 
 ```
 
+# Are parametric analyses on p_want feasible?
+```{r compute number of unique datapoints}
+
+#### count number of distinct p_want values by id and condition ####
+distinct <- beh %>%
+  group_by(id, cond) %>%
+  summarize(distinct = n_distinct(p_want_of_resp))
+
+distinct_ED <- beh %>%
+  group_by(id, cue_type) %>%
+  summarize(distinct = n_distinct(p_want_of_resp))
+
+distinct_PS <- beh %>%
+  group_by(id, portion_size) %>%
+  summarize(distinct = n_distinct(p_want_of_resp))
+
+distinct_PS_food <- beh[!(beh$cond=="OfficeLarge"| beh$cond=="OfficeSmall"),]  %>%
+  group_by(id, portion_size) %>%
+  summarize(distinct = n_distinct(p_want_of_resp))
+
+# summarize # of distinct responses by cue_type and portion_size
+describeBy(distinct_ED$distinct, group = distinct_ED$cue_type)
+describeBy(distinct_PS_food$distinct, group = distinct_PS_food$portion_size)
+
+#### count number of subjects with no variability ####
+# likely cant do parametric analyses if only 1 value for a condition across runs
+# note: to get a list of which subjects have no variability, %>% remove nrow()
+
+# 23 subjects have no variability (distinct==1) at least 1 condition when assessing all cue conditions
+distinct[(distinct$distinct==1),] %>%
+  summarize(distinct = n_distinct(id)) %>% nrow()
+
+# 11 subjects have no variability (distinct==1) at least 1 condition when assessing food conditions
+distinct_food<-distinct[!(distinct$cond=="OfficeLarge" | distinct$cond=="OfficeSmall"),]
+distinct_food[(distinct_food$distinct==1),] %>%
+  summarize(distinct = n_distinct(id)) %>% nrow()
+
+# 4 subjects have no variability (distinct==1) in at least 1 condition when assessing by ED
+distinct_ED_food<-distinct_ED[!(distinct_ED$cue_type=="Office"),]
+distinct_ED_food[(distinct_ED_food$distinct==1),] %>%
+  summarize(distinct = n_distinct(id)) %>% nrow()
+
+# 2 subjects have no variability (distinct==1) in at least 1 condition when assessing by PS (food only)
+distinct_PS_food[(distinct_PS$distinct==1),] %>%
+  summarize(distinct = n_distinct(id)) %>% nrow()
+
+
+
+```
+
+
 ```{r average wanting by condition}
 
 ## NOTE: average here is calculated differently than for liking and fullness ratings -- for liking and fullness, ratings were averaged across all trials. here, % wanting is averaged across all blocks 
@@ -311,11 +372,11 @@ ggplot(beh_pwant_trait_long, aes(x=variable, y=value)) +
 # descriptive stats 
 like_long %>%
   group_by(portion_size, type) %>%
-  get_summary_stats(avg_liking, type = "mean_sd")
+  get_summary_stats(avg_liking, type = "common")
 
 full_long %>%
   group_by(portion_size, type) %>%
-  get_summary_stats(avg_fullness, type = "mean_sd")
+  get_summary_stats(avg_fullness, type = "common")
 
 # boxplot: average liking
 ggplot(like_long, aes(x=portion_size, y=avg_liking, fill=type)) +
@@ -606,16 +667,28 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 
 ``` {r post-scan rating analyses}
 
-# repeated measures anovas (ed * ps)
-liking.aov <- anova_test(
+# subject food only
+like_long_food <- like_long[like_long$type != 'Office', ]
+
+####  repeated measures anovas ####
+# PS (Large, Small) x Type (High, Low, Office) on liking
+liking_all.aov <- anova_test(
   data = like_long, dv = avg_liking, wid = id,
-  within = c(ed, portion_size)
+  within = c(type, portion_size)
   )
 get_anova_table(liking.aov)
 
+# PS (Large, Small) x ED (High, Low) on liking
+liking_food.aov <- anova_test(
+  data = like_long, dv = avg_liking, wid = id,
+  within = c(type, portion_size)
+  )
+get_anova_table(liking_food.aov)
+
+# PS (Large, Small) x ED (High, Low) on percieved fullness
 fullness.aov <- anova_test(
   data = full_long, dv = avg_fullness, wid = id,
-  within = c(ed, portion_size)
+  within = c(type, portion_size)
   )
 get_anova_table(fullness.aov)
 
