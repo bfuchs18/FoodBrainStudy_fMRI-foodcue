@@ -223,54 +223,51 @@ beh$cue_type <- ifelse(grepl("High", beh$cond), "HighED",
 
 ```
 
-# Are parametric analyses on p_want feasible?
+# Are parametric analyses on p_want and food cue response feasible?
 ```{r compute number of unique datapoints}
+#### clean data base ####
 
-#### count number of distinct p_want values by id and condition ####
-distinct <- beh %>%
-  group_by(id, cond) %>%
-  summarize(distinct = n_distinct(p_want_of_resp))
+# remove office conditions
+beh_food<-beh[!(beh$cond=="OfficeLarge" | beh$cond=="OfficeSmall"),]
 
-distinct_ED <- beh %>%
-  group_by(id, cue_type) %>%
-  summarize(distinct = n_distinct(p_want_of_resp))
+# make list subjects with missing behavior for any block
+missing_pwant <- unique(beh_food[is.na(beh_food$p_want_of_resp),"id"])
+missing_pwant # 11, 39, 28, 20
 
-distinct_PS <- beh %>%
-  group_by(id, portion_size) %>%
-  summarize(distinct = n_distinct(p_want_of_resp))
+# count number of subjects with missing data
+nrow(missing_pwant) # N = 4
 
-distinct_PS_food <- beh[!(beh$cond=="OfficeLarge"| beh$cond=="OfficeSmall"),]  %>%
-  group_by(id, portion_size) %>%
-  summarize(distinct = n_distinct(p_want_of_resp))
+# remove subjects with missing data
+beh_food_clean <- beh_food[ ! beh_food$id %in% missing_pwant$id, ]
 
+#### assess variability in p_want responses across blocks ####
+# likely cant do parametric analyses if only 1 value for a condition across runs
+
+# count number of distinct p_want values by id, ED condition
+distict_ED <- beh_food_clean %>%
+  group_by(id, cue_type) %>% summarize(distinct = n_distinct(p_want_of_resp))
+
+# count number of distinct p_want values by id, PS condition
+distict_PS <- beh_food_clean %>%
+  group_by(id, portion_size) %>% summarize(distinct = n_distinct(p_want_of_resp))
+  
 # summarize # of distinct responses by cue_type and portion_size
 describeBy(distinct_ED$distinct, group = distinct_ED$cue_type)
-describeBy(distinct_PS_food$distinct, group = distinct_PS_food$portion_size)
+describeBy(distict_PS$distinct, group = distict_PS$portion_size)
 
-#### count number of subjects with no variability ####
-# likely cant do parametric analyses if only 1 value for a condition across runs
-# note: to get a list of which subjects have no variability, %>% remove nrow()
+# 2 subjects (id 40, 58) have no variability (distinct==1) in at least 1 condition when assessing by ED
+novar_ED <- distict_ED[(distict_ED$distinct==1),] %>%
+  summarize(distinct = n_distinct(id))
+novar_ED$id
+nrow(novar_ED)
 
-# 23 subjects have no variability (distinct==1) at least 1 condition when assessing all cue conditions
-distinct[(distinct$distinct==1),] %>%
-  summarize(distinct = n_distinct(id)) %>% nrow()
+# 1 subject (id 40) has no variability (distinct==1) in at least 1 condition when assessing by PS
+novar_PS <- distict_PS[(distict_PS$distinct==1),] %>%
+  summarize(distinct = n_distinct(id))
+novar_PS$id
+nrow(novar_PS)
 
-# 11 subjects have no variability (distinct==1) at least 1 condition when assessing food conditions
-distinct_food<-distinct[!(distinct$cond=="OfficeLarge" | distinct$cond=="OfficeSmall"),]
-distinct_food[(distinct_food$distinct==1),] %>%
-  summarize(distinct = n_distinct(id)) %>% nrow()
-
-# 4 subjects have no variability (distinct==1) in at least 1 condition when assessing by ED
-distinct_ED_food<-distinct_ED[!(distinct_ED$cue_type=="Office"),]
-distinct_ED_food[(distinct_ED_food$distinct==1),] %>%
-  summarize(distinct = n_distinct(id)) %>% nrow()
-
-# 2 subjects have no variability (distinct==1) in at least 1 condition when assessing by PS (food only)
-distinct_PS_food[(distinct_PS$distinct==1),] %>%
-  summarize(distinct = n_distinct(id)) %>% nrow()
-
-
-
+## Can we add a little error to p_want for subjects with no variability so that we can keep them in model? -- could test with and without 
 ```
 
 
