@@ -15,16 +15,20 @@ library(ggplot2)
 library(dplyr)
 library(haven)
 library(reshape2)
+library(scipub) # includes FullTable1 function
+library(htmlTable) # needed if want to generate HTML table with FullTable1 
 ```
 
 ```{r load generated datasets, include=FALSE}
 
 # these are generated and exported by data_org.R
 
-censor_sum <- read.csv("data/compiled/censorp_byrun.csv")
+censor_sum <- read.csv("data/compiled/censor_sum.csv")
 compiled <- read.csv("data/compiled/demographics_compiled.csv")
 
 ```
+
+# Prepare dataframes
 
 ```{r generate demo variables}
 
@@ -96,7 +100,8 @@ for (i in 1:nrow(compiled)) {
 }
 ```
 
-```{r summarize scan status}
+```{r MRI variables}
+#### assess exclusion rationale ####
 # count the number of runs completed per subject
 compiled$n_run_complete <- rowSums(compiled[ , c("fmri_pp_scans_roar___2","fmri_pp_scans_roar___3", "fmri_pp_scans_roar___4","fmri_pp_scans_roar___5","fmri_pp_scans_roar___6")])
 
@@ -113,9 +118,6 @@ for (i in 1:nrow(compiled)) {
   if(compiled$fmri_pp_complete[i] == 0) {
     compiled$exc_rationale[i] <- "withdrew from MRI"
   }
-  else if(compiled$id[i] == 69) {
-    compiled$exc_rationale[i] <- "STILL PROCESSING"
-  }
   else if(compiled$n_run_complete[i] <3) {
     compiled$exc_rationale[i] <- "withdrew <3 runs"
   }
@@ -127,9 +129,23 @@ for (i in 1:nrow(compiled)) {
   }
 }
 
-# frequency of each exclusion rationale
-table(compiled$exc_rationale)
 
+#### calculate number of time points included in analyses ####
+
+# subset dataframe to "good runs" only
+censor_sum_goodruns <- censor_sum[censor_sum$p_censor_interest < 20, ]
+
+# get number of volumes included (not censored) for each run
+censor_sum_goodruns$n_vol_include <- censor_sum_goodruns$n_vol - censor_sum_goodruns$n_censor
+
+# count number of TRs across "good runs" for each subject
+TR_count <- censor_sum_goodruns %>% group_by(id) %>% summarise(n_vol_goodruns = sum(n_vol_include))
+
+# add TR_count to compiled
+compiled<-merge(x=compiled,y=TR_count,by="id",all.x=TRUE)
+
+
+# response rate in scanner?? 
 ```
 
 ```{r set pre-MRI fullness variable }
@@ -156,25 +172,40 @@ for (i in 1:nrow(compiled)) {
 attended_df <- compiled
 
 # isolate subjects who were scanned on V6
-scanned_df <- compiled2[compiled2$fmri_pp_complete == 1, ]
+scanned_df <- attended_df[attended_df$fmri_pp_complete == 1, ]
 
 # isolate subjects included in imaging analyses
-analyzed_df <- compiled2[compiled2$included == 1, ]
+analyzed_df <- attended_df[attended_df$included == 1, ]
+
+```
+
+# Participant count
+```{r }
+
+# number of subjects who attended V6
+nrow(attended_df)
+
+# number of subjects included in analyses
+sum(attended_df$included == 1)
+
+# number of subjects excluded from analyses
+sum(attended_df$included == 0)
+
+# frequency of each exclusion rationale
+table(attended_df$exc_rationale)
 
 ```
 
 
-```{r make table: included vs excluded}
+# Descriptive statistics
+
+#### Demographics
+```{r demographics table}
 
 ## note: if want to include all children who attended V6 --- can use 'attended_df' df
 ## note: if want to include all children who were scanned --- can use 'scanned_df' df 
 
 # prepare variables
-attended_df$risk_status_mom <- factor(attended_df$risk_status_mom, levels=c(0,1,2),
-         labels=c("Low Risk", 
-                  "High Risk",
-                  "Neither"))
-
 attended_df$included <- factor(attended_df$included, levels=c(0,1),
          labels=c("Excluded", 
                   "Included"))
@@ -189,111 +220,83 @@ attended_df$race <- factor(attended_df$race, levels=c(0,1,2,3,4),
                                 "Asian",
                                 "Black/African American",
                                 "Hawaiian/Pacific Islander"))
-
+# assign labels for table1()
 label(attended_df$sex) <- "Sex"
 label(attended_df$race) <- "Race"
-label(attended_df$risk_status_mom)  <- "Risk Status"
 label(attended_df$age_yr) <- "Age, yrs"
 label(attended_df$income_recode) <- "Family Income"
 label(attended_df$mom_edu_recode) <- "Maternal Education"
-label(attended_df$FMI) <- "Fat mass index"
+label(attended_df$bmi_percentile) <- "BMI percentile"
 
 
-# generate table
-table1(~ risk_status_mom + sex + age_yr + race + income_recode + mom_edu_recode + FMI| included, data=attended_df)
+# generate table 
+table1(~ sex + age_yr + race + income_recode + mom_edu_recode + bmi_percentile| included, data=attended_df)
+
+# generate able with stats -- error when including race
+### variable names not updating for income_recode and mom_edu_recode 
+FullTable1(
+  data = attended_df, vars = c("sex", "age_yr", "income_recode","mom_edu_recode", "bmi_percentile"),
+  var_names = c("sex","age (years)", "family income", "Maternal Education", "BMI percentile"),
+  strata = "included", stars = "none", p_col = FALSE,
+  html = c(TRUE) # for html table
+)
 ```
 
-```{r compare: included vs excluded}
-
-# age
-t.test(attended_df$age ~ attended_df$included, var.equal = TRUE)
+```{r compare demo: included vs excluded}
 
 # sex
 chisq.test(attended_df$included, attended_df$sex, correct=TRUE)
 
-# maternal education
-chisq.test(attended_df$included, attended_df$mom_edu_recode, correct=TRUE)
+# age
+t.test(attended_df$age ~ attended_df$included, var.equal = FALSE)
+
+# race -- is this correct?
+chisq.test(attended_df$included, attended_df$race, correct=TRUE)
 
 # income
 chisq.test(attended_df$included, attended_df$income_recode, correct=TRUE)
 
-# mom bmi
-t.test(attended_df$mom_bmi ~ attended_df$included, var.equal = TRUE)
-
-# risk
-chisq.test(attended_df$included, attended_df$risk_status_mom, correct=TRUE)
-
-# FMI
-t.test(attended_df$FMI ~ attended_df$included, var.equal = TRUE)
-
-
-
-```
-
-```{r make table: participant characteristics risk}
-
-# prepare variables for table
-analyzed_df$dxa_subtotal_perc_fat <- as.numeric(analyzed_df$dxa_subtotal_perc_fat)
-
-analyzed_df$sex <- factor(analyzed_df$sex, levels=c(0,1),
-                            labels=c("Male", 
-                                "Female"))
-
-analyzed_df$risk_status_mom <- factor(analyzed_df$risk_status_mom, levels=c(0,1,2),
-         labels=c("Low Risk", 
-                  "High Risk",
-                  "Neither"))
-
-# set labels
-label(analyzed_df$sex) <- "Sex"
-label(analyzed_df$risk_status_mom)  <- "Risk Status"
-label(analyzed_df$bmi_percentile)     <- "BMI percentile"
-label(analyzed_df$FMI) <- "Fat mass index"
-label(analyzed_df$age_yr) <- "Age, yrs"
-label(analyzed_df$income_recode) <- "Family Income"
-label(analyzed_df$mom_edu_recode) <- "Maternal Education"
-label(analyzed_df$mom_bmi) <- "Maternal BMI"
-label(analyzed_df$pre_mri_ff)     <- "Pre-MRI fullness"
-label(analyzed_df$n_run_good)     <- "Number of analyzed runs"
-label(analyzed_df$fd_avg_allruns)     <- "Average framewise displacement"
-
-
-# generate table
-table1(~ sex + age_yr + bmi_percentile + FMI + income_recode + mom_edu_recode + mom_bmi + pre_mri_ff + n_run_good + fd_avg_allruns| risk_status_mom, data=analyzed_df)
-table1(~ sex + age_yr + bmi_percentile + FMI + income_recode + mom_edu_recode + mom_bmi + pre_mri_ff + fd_avg_allruns| risk_status_mom, data=analyzed_df)
-
-
-# count measured vs. reported BMI
-table(analyzed_df$mom_bmi_method)
-
-
-```
-
-
-```{r compare: by risk}
-
-# age
-t.test(analyzed_df$age ~ analyzed_df$risk_status_mom, var.equal = TRUE)
-
-# sex
-t.test(analyzed_df$sex ~ analyzed_df$risk_status_mom, var.equal = TRUE)
-
 # maternal education
-chisq.test(analyzed_df$risk_status_mom, analyzed_df$mom_edu_recode, correct=TRUE)
+chisq.test(attended_df$included, attended_df$mom_edu_recode, correct=TRUE)
 
-# income
-chisq.test(analyzed_df$risk_status_mom, analyzed_df$income_recode, correct=TRUE)
+# BMI %tile
+t.test(attended_df$bmi_percentile ~ attended_df$included, var.equal = FALSE)
 
-# mom bmi
-t.test(analyzed_df$mom_bmi ~ analyzed_df$risk_status_mom, var.equal = TRUE)
 
-# pre-mri fullness
-t.test(analyzed_df$pre_mri_ff ~ analyzed_df$risk_status_mom, var.equal = TRUE)
 
-# good run count
-t.test(analyzed_df$n_run_good ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+```
 
-# average motion
-t.test(analyzed_df$fd_avg_allruns ~ analyzed_df$risk_status_mom, var.equal = TRUE)
+#### MRI variables
+```{r MRI table}
+
+# assign labels for table1()
+label(analyzed_df$n_run_good) <- "Analyzed runs (n)"
+label(analyzed_df$n_vol_goodruns) <- "Analyzed timepoints (n)"
+label(analyzed_df$pre_mri_ff) <- "Pre-MRI fullness"
+label(analyzed_df$fd_avg_allruns) <- "Average framewise displacement"
+label(analyzed_df$cams_pre_mri) <- "Pre-MRI anxiety"
+
+
+# generate table 
+table1(~ n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + cams_pre_mri, data=analyzed_df)
+
+```
+
+```{r compare MRI by age and sex}
+
+# by age
+cor.test(analyzed_df$age, analyzed_df$n_run_good, method=c("pearson"))
+cor.test(analyzed_df$age, analyzed_df$n_vol_goodruns, method=c("pearson"))
+cor.test(analyzed_df$age, analyzed_df$fd_avg_allruns, method=c("pearson"))
+cor.test(analyzed_df$age, analyzed_df$pre_mri_ff, method=c("pearson"))
+cor.test(analyzed_df$age, analyzed_df$cams_pre_mri, method=c("pearson"))
+
+# by sex
+t.test(analyzed_df$n_run_good ~ analyzed_df$sex, var.equal = FALSE)
+t.test(analyzed_df$n_vol_goodruns ~ analyzed_df$sex, var.equal = FALSE)
+t.test(analyzed_df$fd_avg_allruns ~ analyzed_df$sex, var.equal = FALSE)
+t.test(analyzed_df$pre_mri_ff ~ analyzed_df$sex, var.equal = FALSE)
+t.test(analyzed_df$cams_pre_mri ~ analyzed_df$sex, var.equal = FALSE)
+
 
 ```
