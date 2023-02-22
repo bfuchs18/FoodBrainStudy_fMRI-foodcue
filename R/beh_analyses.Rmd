@@ -17,6 +17,7 @@ library(maditr)
 library(ggplot2)
 library(rstatix)
 library(dplyr)
+library(psych)
 
 # import behavioral data
 beh_all <- read.delim("data/databases/task-foodcue_summary.tsv")
@@ -37,6 +38,11 @@ image_ratings <- setDT(image_ratings_all)[id %chin% index$id] # subset dataframe
 #censor sum database
 censor_sum <- read.delim("data/databases/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
+
+#betas
+rfusiform <- read.delim("data/databases/PM-ED_rfusiform_betas.txt")
+names(rfusiform)[names(rfusiform) == 'sub'] <- 'id'
+
 ```
 
 # Prepare post-scanner ratings
@@ -170,7 +176,7 @@ avg_ratings <- image_ratings[,grep("id|^like|^full", colnames(image_ratings))]
 
 ```
 
-```{r prep beh datasets}
+```{r prep liking and fullness datasets}
 # wide to long -- liking ratings 
 like_long <- reshape2::melt(avg_ratings,
         # ID variables - all the variables to keep but not split apart on
@@ -253,26 +259,26 @@ beh_food_clean <-beh_food_clean[!(beh_food_clean$p_censor_interest>20),]
 # likely cant do parametric analyses if only 1 value for a condition across runs
 
 # count number of distinct p_want values by id, ED condition
-distict_ED <- beh_food_clean %>%
-  group_by(id, cue_type) %>% summarize(distinct = n_distinct(p_want_of_resp))
+distinct_ED <- beh_food_clean %>%
+  group_by(id, cue_type) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
 
 # count number of distinct p_want values by id, PS condition
-distict_PS <- beh_food_clean %>%
-  group_by(id, portion_size) %>% summarize(distinct = n_distinct(p_want_of_resp))
+distinct_PS <- beh_food_clean %>%
+  group_by(id, portion_size) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
   
 # summarize # of distinct responses by cue_type and portion_size
 describeBy(distinct_ED$distinct, group = distinct_ED$cue_type)
-describeBy(distict_PS$distinct, group = distict_PS$portion_size)
+describeBy(distinct_PS$distinct, group = distinct_PS$portion_size)
 
 # Identify subs with  no variability (distinct==1) in at least 1 condition when assessing by ED
-novar_ED <- distict_ED[(distict_ED$distinct==1),] %>%
-  summarize(distinct = n_distinct(id))
+novar_ED <- distinct_ED[(distinct_ED$distinct==1),] %>%
+  dplyr::summarize(distinct = n_distinct(id))
 novar_ED$id # id 4, 40, 58
 nrow(novar_ED) # N = 3
 
 # Identify subs with no variability (distinct==1) in at least 1 condition when assessing by PS
-novar_PS <- distict_PS[(distict_PS$distinct==1),] %>%
-  summarize(distinct = n_distinct(id))
+novar_PS <- distinct_PS[(distinct_PS$distinct==1),] %>%
+  dplyr::summarize(distinct = n_distinct(id))
 novar_PS$id # id 4, 40
 nrow(novar_PS) # N = 2
 
@@ -347,6 +353,10 @@ beh_pwant_trait_long <- melt(beh_pwant_trait, id.vars=c("id"))
 ```
 
 # Descriptive stats and plots
+
+```{r in-scanner response rate, include=TRUE}
+```
+
 ```{r avg p_want: descriptives and plot, include=TRUE}
 
 # get descriptive stats for average (trait) wanting scores
@@ -704,5 +714,87 @@ cor.test(analyzed_df$full_LvS_overall, analyzed_df$like_LvS_overall, use = "comp
 
 cor.test(analyzed_df$full_HvL_overall, analyzed_df$like_HvL_overall, use = "complete.obs")
 # the more full a child reports for high vs. low ED foods, the more they report liking high vs. low ED foods
+
+```
+
+``` {r BOLD correlation}
+library(stringr)
+
+# clean betas dataframe
+rfusiform$high_beta_temp <- str_trim(rfusiform$high_beta) # removes white space at start of string
+rfusiform$low_beta_temp <- str_trim(rfusiform$low_beta) # removes white space at start of string
+
+rfusiform$high_beta <- as.numeric(sub(" .*", "", rfusiform$high_beta_temp)) # remove everything after first " ", make numeric
+rfusiform$low_beta <- as.numeric(sub(" .*", "", rfusiform$low_beta_temp)) # remove everything after first " ", make numeric
+
+# wide to long
+rfusiform_long <- reshape2::melt(rfusiform,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=c("high_beta","low_beta"),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="betas"
+)
+
+#### full sample stats ####
+# summary stats
+rfusiform_long %>%
+  group_by(condition) %>%
+  get_summary_stats(betas, type = "common")
+
+# violin plot
+ggplot(rfusiform_long, aes(x=condition, y=betas)) + 
+    geom_violin(trim=FALSE) + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
+
+# t-test
+t.test(rfusiform$high_beta, rfusiform$low_beta, paired = TRUE, alternative = "two.sided")
+
+#### remove 120 ####
+rfusiform_long_no120<-rfusiform_long[!(rfusiform_long$id==120) ,]
+rfusiform_no120<-rfusiform[!(rfusiform$id==120) ,]
+
+# violin plot
+ggplot(rfusiform_long_no120, aes(x=condition, y=betas)) + 
+    geom_violin(trim=FALSE) + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
+
+# t-test
+t.test(rfusiform_no120$high_beta, rfusiform_no120$low_beta, paired = TRUE, alternative = "two.sided")
+# still significantly different without 120
+
+#### remove 55 ####
+rfusiform_long_no55<-rfusiform_long[!(rfusiform_long$id==55) ,]
+rfusiform_no55<-rfusiform[!(rfusiform$id==55) ,]
+
+# violin plot
+ggplot(rfusiform_long_no55, aes(x=condition, y=betas)) + 
+    geom_violin(trim=FALSE) + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
+
+# t-test
+t.test(rfusiform_no55$high_beta, rfusiform_no55$low_beta, paired = TRUE, alternative = "two.sided")
+# still significantly different without 55
+
+#### remove 120 and 55 ####
+rfusiform_long_nooutliers<-rfusiform_long[!(rfusiform_long$id==55 | rfusiform_long$id==120) ,]
+rfusiform_nooutliers<-rfusiform[!(rfusiform_long$id==55 | rfusiform_long$id==120) ,]
+
+# violin plot
+ggplot(rfusiform_long_nooutliers, aes(x=condition, y=betas)) + 
+    geom_violin(trim=FALSE) + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
+
+# t-test
+t.test(rfusiform_nooutliers$high_beta, rfusiform_nooutliers$low_beta, paired = TRUE, alternative = "two.sided")
+# still significantly different without 55 and 120
+
+# summary stats
+rfusiform_long_nooutliers %>%
+  group_by(condition) %>%
+  get_summary_stats(betas, type = "common")
 
 ```
