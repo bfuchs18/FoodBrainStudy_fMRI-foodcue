@@ -60,18 +60,18 @@ mot_sum_reduced <- mot_sum[,c("id", "fd_avg_allruns")]
 # create database will all subjects in anthro_data_reduced
 concat <- merge(x = anthro_data_reduced, y = V6_reduced, by = "id", all.x = TRUE)
 concat <- merge(x = concat, y = scanning_reduced, by = "id", all.x = TRUE)
-compiled <- merge(x = concat, y = mot_sum_reduced, by = "id", all.x = TRUE)
+V6_compiled <- merge(x = concat, y = mot_sum_reduced, by = "id", all.x = TRUE)
 
 # add column based on index file to indicate inclusion
-compiled$included <- as.integer(compiled$id %in% index$id)
+V6_compiled$included <- as.integer(V6_compiled$id %in% index$id)
 
 ############ Subset dataframes by visit status ###########
 
 # isolate subjects who attened visit 6
-compiled <- setDT(compiled)[id %chin% V6$id]
+V6_compiled <- setDT(V6_compiled)[id %chin% V6$id]
 
 ############ Export ##########
-write.csv(compiled, 'data/compiled/demographics_compiled.csv', row.names = FALSE)
+write.csv(V6_compiled, 'data/compiled/demographics_compiled.csv', row.names = FALSE)
 write.csv(image_ratings, 'data/compiled/fmri_image_ratings.csv', row.names = FALSE)
 write.csv(censor_sum, 'data/compiled/censor_sum.csv', row.names = FALSE)
 
