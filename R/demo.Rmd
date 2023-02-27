@@ -17,30 +17,27 @@ library(haven)
 library(reshape2)
 library(scipub) # includes FullTable1 function
 library(htmlTable) # needed if want to generate HTML table with FullTable1 
+library(mice) # for imputing missing pre-mri fullness value
 ```
 
 ```{r load generated datasets, include=FALSE}
 
-# these are generated and exported by data_org.R
-
-censor_sum <- read.csv("data/compiled/censor_sum.csv")
-compiled <- read.csv("data/compiled/demographics_compiled.csv")
+# Source data_org.R to generate censor_sum and V6_compiled datasets
+source("R/data_org.R")
 
 ```
 
 # Prepare dataframes
 
+```{r set up pre-mri freddy fullness}
+# Source pre_mri_fullness.R to generate pre-MRI fullness variables
+  # will create 'compiled' database that is V6_compiled + pre_mri_ff and pre_mri_snack variables
+  # will generate a dataframe called ff_concat that contains imputed values for subject 54
+source("R/pre_mri_fullness.R")
+
+```
+
 ```{r generate demo variables}
-
-#### Fat Mass Index ####
-# height in meters 
-compiled$height_avg_meters <- NA
-compiled$height_avg_meters <- (compiled$height_avg)*.01
-
-# FMI
-compiled$dxa_total_fat_mass_kg <- as.numeric(compiled$dxa_total_fat_mass)/1000
-compiled$FMI <- NA
-compiled$FMI <- compiled$dxa_total_fat_mass_kg / (compiled$height_avg_meters)^2
 
 #### Income ####
 # orig coding (0'<$20K' 1'$20-35,999K' 2'$36-50,999K' 3'$51-75,999K' 4'$76-100K' 5'>$100K')
@@ -100,13 +97,13 @@ for (i in 1:nrow(compiled)) {
 }
 ```
 
-```{r MRI variables}
+```{r generate MRI variables}
 #### assess exclusion rationale ####
 # count the number of runs completed per subject
 compiled$n_run_complete <- rowSums(compiled[ , c("fmri_pp_scans_roar___2","fmri_pp_scans_roar___3", "fmri_pp_scans_roar___4","fmri_pp_scans_roar___5","fmri_pp_scans_roar___6")])
 
 # count the number of runs per subject with less than 20% of interest_TRs censored
-run_count <- censor_sum %>% group_by(id) %>% summarise(n_run_good = sum(p_censor_interest < 20))
+run_count <- censor_sum %>% group_by(id) %>% dplyr::summarise(n_run_good = sum(p_censor_interest < 20))
 
 # add run_count to attended_v6
 compiled<-merge(x=compiled,y=run_count,by="id",all.x=TRUE)
@@ -139,30 +136,11 @@ censor_sum_goodruns <- censor_sum[censor_sum$p_censor_interest < 20, ]
 censor_sum_goodruns$n_vol_include <- censor_sum_goodruns$n_vol - censor_sum_goodruns$n_censor
 
 # count number of TRs across "good runs" for each subject
-TR_count <- censor_sum_goodruns %>% group_by(id) %>% summarise(n_vol_goodruns = sum(n_vol_include))
+TR_count <- censor_sum_goodruns %>% group_by(id) %>% dplyr::summarise(n_vol_goodruns = sum(n_vol_include))
 
 # add TR_count to compiled
 compiled<-merge(x=compiled,y=TR_count,by="id",all.x=TRUE)
 
-
-# response rate in scanner?? 
-```
-
-```{r set pre-MRI fullness variable }
-
-compiled$pre_mri_ff <- NA
-
-for (i in 1:nrow(compiled)) {
-  if(!is.na(compiled$ff_postmri_snack2[i])){
-    compiled$pre_mri_ff[i] <- compiled$ff_postmri_snack2[i]
-  }
-  else if(!is.na(compiled$ff_postmri_snack[i])) {
-    compiled$pre_mri_ff[i] <- compiled$ff_postmri_snack[i]
-  }
-  else if(!is.na(compiled$ff_premri_snack[i])) {
-  compiled$pre_mri_ff[i] <- compiled$ff_premri_snack[i]
-  }
-}
 
 ```
 
@@ -179,8 +157,10 @@ analyzed_df <- attended_df[attended_df$included == 1, ]
 
 ```
 
-# Participant count
-```{r }
+# Descriptive statistics
+
+#### Participant count
+```{r inclusion and exclusion numbers}
 
 # number of subjects who attended V6
 nrow(attended_df)
@@ -195,9 +175,6 @@ sum(attended_df$included == 0)
 table(attended_df$exc_rationale)
 
 ```
-
-
-# Descriptive statistics
 
 #### Demographics
 ```{r demographics table}
@@ -269,16 +246,19 @@ t.test(attended_df$bmi_percentile ~ attended_df$included, var.equal = FALSE)
 #### MRI variables
 ```{r MRI table}
 
+
 # assign labels for table1()
 label(analyzed_df$n_run_good) <- "Analyzed runs (n)"
 label(analyzed_df$n_vol_goodruns) <- "Analyzed timepoints (n)"
 label(analyzed_df$pre_mri_ff) <- "Pre-MRI fullness"
 label(analyzed_df$fd_avg_allruns) <- "Average framewise displacement"
 label(analyzed_df$cams_pre_mri) <- "Pre-MRI anxiety"
+label(analyzed_df$pre_mri_snack) <- "Consumed snack"
+
 
 
 # generate table 
-table1(~ n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + cams_pre_mri, data=analyzed_df)
+table1(~ n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + pre_mri_snack + cams_pre_mri, data=analyzed_df)
 
 ```
 
