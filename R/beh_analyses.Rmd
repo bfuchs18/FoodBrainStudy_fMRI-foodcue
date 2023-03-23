@@ -21,7 +21,10 @@ library(psych)
 
 # import behavioral data
 beh_all <- read.delim("data/databases/task-foodcue_summary.tsv")
-image_ratings_all <- read.csv("data/compiled/fmri_image_ratings.csv")
+#image_ratings_all <- read.csv("data/compiled/fmri_image_ratings.csv")
+
+# generate image_ratings databases
+source("R/data_org.R")
 
 # source Alaina's functions
 source("R/barplot_functions.R")
@@ -30,10 +33,6 @@ source("R/barplot_functions.R")
 index_wide <- read.table("data/databases/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
 index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
 names(index) <- "id" # add column name
-
-# subset to those in analyses
-beh <- setDT(beh_all)[id %chin% index$id] # subset dataframes to only include children in fmri analyses
-image_ratings <- setDT(image_ratings_all)[id %chin% index$id] # subset dataframes to only include children in fmri analyses
 
 #censor sum database
 censor_sum <- read.delim("data/databases/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
@@ -223,18 +222,21 @@ full_diff_ratings_long <- melt(avg_ratings,
 # Prepare in-scanner behavior
 ```{r prep beh dataset}
 # remove condition letter (A-F) from block_proc 
-beh$block_proc <- substring(beh$block_proc, 2)
+beh_all$block_proc <- substring(beh_all$block_proc, 2)
 
 # Add portion_size and cue-type columns
-beh$portion_size <- ifelse(grepl("Large", beh$cond), "Large", "Small")
-beh$cue_type <- ifelse(grepl("High", beh$cond), "HighED", 
-                       ifelse(grepl("Low", beh$cond), "LowED", "Office"))
+beh_all$portion_size <- ifelse(grepl("Large", beh_all$cond), "Large", "Small")
+beh_all$cue_type <- ifelse(grepl("High", beh_all$cond), "HighED", 
+                       ifelse(grepl("Low", beh_all$cond), "LowED", "Office"))
 
 ```
 
 # Are parametric analyses on p_want and food cue response feasible?
 ```{r compute number of unique datapoints}
 #### clean data base ####
+
+# subset to children included for non-parametric fmri analyses
+beh <- setDT(beh_all)[id %chin% index$id]
 
 # remove office conditions
 beh_food<-beh[!(beh$cond=="OfficeLarge" | beh$cond=="OfficeSmall"),]
@@ -255,8 +257,7 @@ beh_food_clean <- merge(x=beh_food_temp,y=censor_sum_subset,
              by=c("id","run"))
 beh_food_clean <-beh_food_clean[!(beh_food_clean$p_censor_interest>20),]
 
-#### assess variability in p_want responses across blocks ####
-# likely cant do parametric analyses if only 1 value for a condition across runs
+#### assess N unique responses in p_want responses by id, condition ####
 
 # count number of distinct p_want values by id, ED condition
 distinct_ED <- beh_food_clean %>%
@@ -282,75 +283,82 @@ novar_PS <- distinct_PS[(distinct_PS$distinct==1),] %>%
 novar_PS$id # id 4, 40
 nrow(novar_PS) # N = 2
 
-## Can we add a little error to p_want for subjects with no variability so that we can keep them in model? -- could test with and without 
+
+#### generate beh database with analyzed sample ####
+# remove subjects with no variability in p_want in at least 1 condition by ED or PS
+
+# remove 4 and 40 -- not included in analyses by PS
+beh_food_analyzed_PS<-beh_food_clean[!(beh_food_clean$id==4 | beh_food_clean$id==40),]
+
+# remove 4 40 amd 58 -- not included in analyses by ED
+beh_food_analyzed_ED<-beh_food_clean[!(beh_food_clean$id==4 | beh_food_clean$id==40 | beh_food_clean$id==58),]
+
+
+#### assess range in p_want responses by id, condition ####
+
+# get min and max of distinct p_want values by id, ED condition
+range_ED <- beh_food_analyzed_ED %>%
+  group_by(id, cue_type) %>% 
+  dplyr::summarize(min_pwant = min(p_want_of_resp), 
+            max_pwant = max(p_want_of_resp),
+            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
+
+# get min and max of distinct p_want values by id, PS condition
+range_PS <- beh_food_analyzed_PS %>%
+  group_by(id, portion_size) %>% 
+  dplyr::summarize(min_pwant = min(p_want_of_resp), 
+            max_pwant = max(p_want_of_resp),
+            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
+  
+# summarize range
+describeBy(range_ED$range_pwant, group = range_ED$cue_type)
+describeBy(range_PS$range_pwant, group = range_PS$portion_size)
+
+hist(range_ED$range_pwant)
+hist(range_PS$range_pwant)
 ```
 
 
-```{r average wanting by condition}
+```{r average wanting by analyzed condition}
+
+# analyzed condtions: HighED, SmallED, LargePS, SmallPS
+
+## datasets to use:
+#beh_food_analyzed_PS
+#beh_food_analyzed_ED
 
 ## NOTE: average here is calculated differently than for liking and fullness ratings -- for liking and fullness, ratings were averaged across all trials. here, % wanting is averaged across all blocks 
 
 # subset beh into dataframes for each condition
-beh_pwant_hl <- beh[beh$cond == 'HighLarge',]
-beh_pwant_hs <- beh[beh$cond == 'HighSmall',]
-beh_pwant_ll <- beh[beh$cond == 'LowLarge',]
-beh_pwant_ls <- beh[beh$cond == 'LowSmall',]
+beh_pwant_HighED <- beh_food_analyzed_ED[beh_food_analyzed_ED$cue_type == 'HighED',]
+beh_pwant_LowED <- beh_food_analyzed_ED[beh_food_analyzed_ED$cue_type == 'LowED',]
+beh_pwant_LargePS <- beh_food_analyzed_PS[beh_food_analyzed_PS$portion_size == 'Large',]
+beh_pwant_SmallPS <- beh_food_analyzed_PS[beh_food_analyzed_PS$portion_size == 'Small',]
 
 #create new data sets with person(i)-mean (pm) values for each condition
-hl_imeans <- ddply(beh_pwant_hl, "id", summarize,
-                       p_want_hl_pm = mean(p_want_of_resp, na.rm=TRUE))
+high_imeans <- ddply(beh_pwant_HighED, "id", summarize,
+                       p_want_high_pm = mean(p_want_of_resp, na.rm=TRUE))
 
-hs_imeans <- ddply(beh_pwant_hs, "id", summarize,
-                       p_want_hs_pm = mean(p_want_of_resp, na.rm=TRUE))
+low_imeans <- ddply(beh_pwant_LowED, "id", summarize,
+                       p_want_low_pm = mean(p_want_of_resp, na.rm=TRUE))
 
-ll_imeans <- ddply(beh_pwant_ll, "id", summarize,
-                       p_want_ll_pm = mean(p_want_of_resp, na.rm=TRUE))
+large_imeans <- ddply(beh_pwant_LargePS, "id", summarize,
+                       p_want_large_pm = mean(p_want_of_resp, na.rm=TRUE))
 
-ls_imeans <- ddply(beh_pwant_ls, "id", summarize,
-                       p_want_ls_pm = mean(p_want_of_resp, na.rm=TRUE))
+small_imeans <- ddply(beh_pwant_SmallPS, "id", summarize,
+                       p_want_small_pm = mean(p_want_of_resp, na.rm=TRUE))
 
 # create wide trait data set -- will have the average wanting for each person, by condition (1 per column)
-beh_pwant_trait <- merge(hl_imeans, hs_imeans, by="id")
-beh_pwant_trait <- merge(beh_pwant_trait, ll_imeans, by="id")
-beh_pwant_trait <- merge(beh_pwant_trait, ls_imeans, by="id")
+beh_pwant_trait <- NA
+beh_pwant_trait <- merge(high_imeans, low_imeans, by="id", all=T)
+beh_pwant_trait <- merge(beh_pwant_trait, large_imeans, by="id", all=T)
+beh_pwant_trait <- merge(beh_pwant_trait, small_imeans, by="id", all=T)
 
 # make long
 beh_pwant_trait_long <- melt(beh_pwant_trait, id.vars=c("id"))
 
-# #Merge individual means with subset dataframes
-# beh_pwant_hl <- merge(beh_pwant_hl, hl_imeans, by="id")
-# beh_pwant_hs <- merge(beh_pwant_hs, hs_imeans, by="id")
-# beh_pwant_ll <- merge(beh_pwant_ll, ll_imeans, by="id")
-# beh_pwant_ls <- merge(beh_pwant_ls, ls_imeans, by="id")
-# 
-# # within - person center variables
-# beh_pwant_hl$hl_wpc <- NA
-# beh_pwant_hl$hl_wpc = beh_pwant_hl$p_want_of_resp - beh_pwant_hl$p_want_hl_pm
-# 
-# beh_pwant_hs$hs_wpc <- NA
-# beh_pwant_hs$hs_wpc = beh_pwant_hs$p_want_of_resp - beh_pwant_hs$p_want_hs_pm
-# 
-# beh_pwant_ll$hl_wpc <- NA
-# beh_pwant_ll$hl_wpc = beh_pwant_ll$p_want_of_resp - beh_pwant_ll$p_want_ll_pm
-# 
-# beh_pwant_ls$ls_wpc <- NA
-# beh_pwant_ls$ls_wpc = beh_pwant_ls$p_want_of_resp - beh_pwant_ls$p_want_ls_pm
-# 
-# 
-# #grand mean center p_want_of_resp (trait)
-# beh_pwant_hl$hl_gmc <- NA
-# beh_pwant_hl$hl_gmc = beh_pwant_hl$p_want_hl_pm - mean(beh_pwant_hl$p_want_of_resp, na.rm = T)
-# 
-# beh_pwant_hs$hs_gmc <- NA
-# beh_pwant_hs$hs_gmc = beh_pwant_hs$p_want_hs_pm - mean(beh_pwant_hs$p_want_of_resp, na.rm = T)
-# 
-# beh_pwant_ll$ll_gmc <- NA
-# beh_pwant_ll$ll_gmc = beh_pwant_ll$p_want_ll_pm - mean(beh_pwant_ll$p_want_of_resp, na.rm = T)
-# 
-# beh_pwant_ls$ls_gmc <- NA
-# beh_pwant_ls$ls_gmc = beh_pwant_ls$p_want_ls_pm - mean(beh_pwant_ls$p_want_of_resp, na.rm = T)
-
 ```
+
 
 # Descriptive stats and plots
 
@@ -430,56 +438,82 @@ ggplot(full_long, aes(x = condition, y = avg_fullness)) +
 
 
 # for each condition, fit empty model predicting p_want_of_resp from random intercept
-emptymodel_hl <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
-              data=beh_pwant_hl,
+emptymodel_high <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
+              data=beh_pwant_HighED,
               na.action=na.exclude)
 
-emptymodel_hs <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
-              data=beh_pwant_hs,
+emptymodel_low <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
+              data=beh_pwant_LowED,
               na.action=na.exclude)
 
-emptymodel_ll <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
-              data=beh_pwant_ll,
+emptymodel_large <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
+              data=beh_pwant_LargePS,
               na.action=na.exclude)
 
-emptymodel_ls <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
-              data=beh_pwant_ls,
+emptymodel_small <- lmer(formula = p_want_of_resp ~ 1 + (1|id), 
+              data=beh_pwant_SmallPS,
               na.action=na.exclude)
 
-summary(emptymodel_hl)
-summary(emptymodel_hs)
-summary(emptymodel_ll)
-summary(emptymodel_ls)
+summary(emptymodel_high)
+summary(emptymodel_low)
+summary(emptymodel_large)
+summary(emptymodel_small)
 
-# use intecepts and residuals from empty model to assess within-person sd -- but how??? MVM class 6
-randeff_hl <- as.data.frame(VarCorr(emptymodel_hl)) # extract variance and sd components 
-int_hl <- randeff_hl[1,4] # extract intercept
-residual_hl <- randeff_hl[2,4] # extract residual
-residual_sd_hl <- randeff_hl[2,5] # extract residual sd
+# use intecepts and residuals from empty model to assess within-person variance -- but how??? MVM class 6
+randeff_high <- as.data.frame(VarCorr(emptymodel_high)) # extract variance and sd components 
+int_high <- randeff_high[1,4] # extract intercept
+residual_high <- randeff_high[2,4] # extract residual
+residual_sd_high <- randeff_high[2,5] # extract residual sd
+
+randeff_low <- as.data.frame(VarCorr(emptymodel_low)) # extract variance and sd components 
+int_low <- randeff_low[1,4] # extract intercept
+residual_low <- randeff_low[2,4] # extract residual
+residual_sd_low <- randeff_low[2,5] # extract residual sd
+
+randeff_large <- as.data.frame(VarCorr(emptymodel_large)) # extract variance and sd components 
+int_large <- randeff_large[1,4] # extract intercept
+residual_large <- randeff_large[2,4] # extract residual
+residual_sd_large <- randeff_large[2,5] # extract residual sd
+
+randeff_small <- as.data.frame(VarCorr(emptymodel_small)) # extract variance and sd components 
+int_small <- randeff_small[1,4] # extract intercept
+residual_small <- randeff_small[2,4] # extract residual
+residual_sd_small <- randeff_small[2,5] # extract residual sd
 
 
 # ICC : the % of total variability that is between-person (percent of variabilty due to differences between people)
-#ICC_between <- RandomEffects[1,4]/(RandomEffects[1,4]+RandomEffects[2,4]) 
-ICC_between_hl <- int_hl / (int_hl + residual_hl)
+ICC_between_high <- int_high / (int_high + residual_high)
+ICC_between_low <- int_low / (int_low + residual_low)
+ICC_between_large <- int_large / (int_large + residual_large)
+ICC_between_small <- int_small / (int_small + residual_small)
 
 ```
 
 ```{r plot behavior by run/block procedure}
-beh$run <- as.factor(beh$run)
+
+beh_food_analyzed_PS$run <- as.factor(beh_food_analyzed_PS$run)
+beh_food_analyzed_ED$run <- as.factor(beh_food_analyzed_ED$run)
 
 #### wanting by run ####
 # facet box plots -- plot wanting for each condition across runs
-want_byrun <- ggplot(beh, aes(x=run, y=p_want_of_resp, fill=cond)) + 
+want_byrun <- ggplot(beh_food_clean, aes(x=run, y=p_want_of_resp, fill=cond)) + 
     geom_boxplot() +
     facet_wrap(~cond)
 want_byrun
 
 #### wanting by block procedure ####
-# facet box plots -- plot wanting for each condition across block_proc (order of block_proc differered between versions A and B)
-want_byproc <- ggplot(beh, aes(x=block_proc, y=p_want_of_resp, fill=cond)) + 
+# facet box plots -- plot wanting across block_proc (order of block_proc differered between versions A and B)
+# By Portion size ## PROBLEM: EACH SUBJECT WILL HAVE 2 DATA POINTS PER BLOCK_PROC
+want_byproc_PS <- ggplot(beh_food_analyzed_PS, aes(x=block_proc, y=p_want_of_resp, fill=portion_size)) + 
     geom_boxplot() +
-    facet_wrap(~cond)
-want_byproc
+    facet_wrap(~portion_size)
+want_byproc_PS
+
+# By ED ## PROBLEM: EACH SUBJECT WILL HAVE 2 DATA POINTS PER BLOCK_PROC
+want_byproc_ED <- ggplot(beh_food_analyzed_ED, aes(x=block_proc, y=p_want_of_resp, fill=cue_type)) + 
+    geom_boxplot() +
+    facet_wrap(~cue_type)
+want_byproc_ED
 
 #### liking by block procedure ####
 # subset liking
@@ -636,28 +670,26 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 ```
 
 ```{r p_want analyses - food only}
-
-# subset food conditions only
-beh_food_NAs <- beh[beh$cue_type == "HighED" | beh$cue_type == "LowED",]
-
-# remove NAs
-beh_food <- beh_food_NAs[!is.na(beh_food_NAs$p_want_of_resp),]
+# Database options:
+#beh_food_clean
+#beh_food_analyzed_ED
+#beh_food_analyzed_PS
 
 # portion size (large, small) x food-cue type (high, low)
-p_want_mixed = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_food)
+p_want_mixed = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_food_clean)
 anova(p_want_mixed)
 
 # get predicted response after adjusting for run
-beh_food$predict_p_want <- predict(p_want_mixed, type="response")
+beh_food_clean$predict_p_want <- predict(p_want_mixed, type="response")
 
 #plot with ggplot
-ggplot(data=beh_food, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
+ggplot(data=beh_food_clean, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
   geom_bar(stat="identity", position=position_dodge())+
   scale_fill_brewer(palette="Paired")+
   theme_minimal()
 
 # violin plot 
-plot <- ggplot(beh_food, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
+plot <- ggplot(beh_food_clean, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
   geom_violin(trim=FALSE)+
  # geom_signif(stat = "identity", inherit.aes = FALSE,
    #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
@@ -672,12 +704,12 @@ plot <- ggplot(beh_food, aes(x=cue_type, y=predict_p_want, fill = portion_size))
         legend.title = element_blank())
 
 # barplot with alaina's function
-ps_by_ed <- data.frame(beh_food$portion_size, beh_food$cue_type)
-mean_cond = means.function.na(beh_food, beh_food$p_want_of_resp, ps_by_ed) # get mean ps and ed
-se_cond = se.function.na(beh_food, beh_food$p_want_of_resp, ps_by_ed)
+ps_by_ed <- data.frame(beh_food_clean$portion_size, beh_food_clean$cue_type)
+mean_cond = means.function.na(beh_food_clean, beh_food_clean$p_want_of_resp, ps_by_ed) # get mean ps and ed
+se_cond = se.function.na(beh_food_clean, beh_food_clean$p_want_of_resp, ps_by_ed)
 
-beh_food$portion_size <- as.factor(beh_food$portion_size)
-bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_food$portion_size)
+beh_food_clean$portion_size <- as.factor(beh_food_clean$portion_size)
+bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_food_clean$portion_size)
 
 ```
 
