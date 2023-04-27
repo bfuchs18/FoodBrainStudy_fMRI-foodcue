@@ -43,7 +43,7 @@ names(index) <- "id" # add column name
 
 ############ Reduce dataframes to needed variables ###########
 
-anthro_data_reduced <- anthro_data[,c("id","sex","age_yr", "race", "risk_status_mom", "height_avg", "dxa_total_fat_mass",
+anthro_data_reduced <- anthro_data[,c("id","sex","age_yr", "race", "ethnicity" ,"risk_status_mom", "height_avg", "dxa_total_fat_mass",
                         "bmi_percentile", "income", "parent_respondent", "parent_ed", "parent_ed_other",
                         "partner_ed", "partner_ed_other", "parent_bmi", "sr_mom_bmi")]
 
