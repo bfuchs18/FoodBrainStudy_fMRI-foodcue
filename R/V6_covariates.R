@@ -100,3 +100,11 @@ ff_concat <- merge(x = ff_missing, y = ff_complete_med, by = "id", all.x = TRUE)
 ff_concat <- merge(x = ff_concat, y = ff_complete_max, by = "id", all.x = TRUE)
 ff_concat <- merge(x = ff_concat, y = ff_complete_min, by = "id", all.x = TRUE)
 
+#### Add pre-mri CAMS value ####
+CAMS_data <- compiled[,c('id','cams_pre_mri')]
+V6_covar <- merge(x = ff_concat, y = CAMS_data, by = "id", all.x = TRUE)
+
+#### Export database for use in imaging analyses ####
+write.csv(V6_covar, 'data/compiled/V6_covariates.csv', row.names = FALSE)
+
+
