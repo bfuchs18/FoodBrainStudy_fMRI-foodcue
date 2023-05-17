@@ -9,7 +9,9 @@ editor_options:
 
 Code to plot and analyze in-scanner behavioral data (% wanting)
 
-```{r setup, include=FALSE}
+# Setup
+
+```{r imports, include=FALSE}
 library(lme4)
 library(lmerTest) # need this to get p-values with anova()
 library(plyr)
@@ -45,7 +47,8 @@ names(rfusiform)[names(rfusiform) == 'sub'] <- 'id'
 
 ```
 
-# Prepare dataframe of in-scanner behavior (p_want)
+Prepare dataframe of in-scanner behavior (p_want)
+
 ```{r prep beh dataset}
 # remove condition letter (A-F) from block_proc 
 beh_all$block_proc <- substring(beh_all$block_proc, 2)
@@ -63,12 +66,15 @@ beh_all$category <- ifelse(grepl("High", beh_all$cond), "HighED",
 # subset to children included for non-parametric fmri analyses
 beh <- setDT(beh_all)[id %chin% index$id]
 
-# remove office conditions
+# create food-only dataframe by removing office conditions
 beh_food<-beh[!(beh$cue_type=="office"),]
 
 ```
 
-# p_want analyses on subjects included in non-parametric analyses 
+# Behavioral analyses
+
+The following code analyses p_want by cue type/ED and amount and generates corresponding plots.
+Behavior is assessed for all subjects included in non-parametric analyses (n=61).
 
 Behavioral analyses:
 ``` {r p_want analyses}
@@ -189,95 +195,14 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 #=
 ```
 
+# Prepare for parametric analyses
 
-# Determine what subjects to exclude from parametric analyses
+The follow chunk is used to determine what subjects to exclude from parametric analyses
 
 Subjects will be excluded if:
 (1) they are missing p_want_of_resp for any block
 (2) they do not have enough variability in p_want_of_resp to be included in analyses (must have >1 unique value)
 
-Food cue only: -- this can be deleted 
-```{r compute number of unique datapoints}
-#### clean data base ####
-
-# make list subjects with missing behavior for any block
-missing_pwant <- unique(beh_food[is.na(beh_food$p_want_of_resp),"id"])
-missing_pwant # 11, 39, 28, 20
-
-# count number of subjects with missing data
-nrow(missing_pwant) # N = 4
-
-# remove subjects with missing data
-beh_food_temp <- beh_food[ ! beh_food$id %in% missing_pwant$id, ]
-
-# remove runs excluded for motion
-censor_sum_subset <- censor_sum[,c("id", "run", "p_censor_interest")]
-beh_food_clean <- merge(x=beh_food_temp,y=censor_sum_subset, 
-             by=c("id","run"))
-beh_food_clean <-beh_food_clean[!(beh_food_clean$p_censor_interest>20),]
-
-# #### assess N unique responses in p_want responses by id, condition ####
-# 
-# # count number of distinct p_want values by id, ED condition
-# distinct_ED <- beh_food_clean %>%
-#   group_by(id, cue_type) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
-# 
-# # count number of distinct p_want values by id, PS condition
-# distinct_PS <- beh_food_clean %>%
-#   group_by(id, portion_size) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
-#   
-# # summarize # of distinct responses by cue_type and portion_size
-# describeBy(distinct_ED$distinct, group = distinct_ED$cue_type)
-# describeBy(distinct_PS$distinct, group = distinct_PS$portion_size)
-# 
-# # Identify subs with  no variability (distinct==1) in at least 1 condition when assessing by ED
-# novar_ED <- distinct_ED[(distinct_ED$distinct==1),] %>%
-#   dplyr::summarize(distinct = n_distinct(id))
-# novar_ED$id # id 4, 40, 58
-# nrow(novar_ED) # N = 3
-# 
-# # Identify subs with no variability (distinct==1) in at least 1 condition when assessing by PS
-# novar_PS <- distinct_PS[(distinct_PS$distinct==1),] %>%
-#   dplyr::summarize(distinct = n_distinct(id))
-# novar_PS$id # id 4, 40
-# nrow(novar_PS) # N = 2
-# 
-# 
-# #### generate beh database with analyzed sample ####
-# # remove subjects with no variability in p_want in at least 1 condition by ED or PS
-# 
-# # remove 4 and 40 -- not included in analyses by PS
-# beh_food_analyzed_PS<-beh_food_clean[!(beh_food_clean$id==4 | beh_food_clean$id==40),]
-# 
-# # remove 4 40 amd 58 -- not included in analyses by ED
-# beh_food_analyzed_ED<-beh_food_clean[!(beh_food_clean$id==4 | beh_food_clean$id==40 | beh_food_clean$id==58),]
-# 
-# 
-# #### assess range in p_want responses by id, condition ####
-# 
-# # get min and max of distinct p_want values by id, ED condition
-# range_ED <- beh_food_analyzed_ED %>%
-#   group_by(id, cue_type) %>% 
-#   dplyr::summarize(min_pwant = min(p_want_of_resp), 
-#             max_pwant = max(p_want_of_resp),
-#             range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
-# 
-# # get min and max of distinct p_want values by id, PS condition
-# range_PS <- beh_food_analyzed_PS %>%
-#   group_by(id, portion_size) %>% 
-#   dplyr::summarize(min_pwant = min(p_want_of_resp), 
-#             max_pwant = max(p_want_of_resp),
-#             range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
-#   
-# # summarize range
-# describeBy(range_ED$range_pwant, group = range_ED$cue_type)
-# describeBy(range_PS$range_pwant, group = range_PS$portion_size)
-# 
-# hist(range_ED$range_pwant)
-# hist(range_PS$range_pwant)
-```
-
-Food and office:
 ```{r identify subs to exclude}
 
 #### Identify subs with missing behavior for any block ####
@@ -590,44 +515,7 @@ full_byproc
 ```
 
 
-# Analyses
-
-``` {r post-scan rating analyses}
-
-# subject food only
-like_long_food <- like_long[like_long$type != 'Office', ]
-
-####  repeated measures anovas ####
-# PS (Large, Small) x Type (High, Low, Office) on liking
-liking_all.aov <- anova_test(
-  data = like_long, dv = avg_liking, wid = id,
-  within = c(type, portion_size)
-  )
-get_anova_table(liking.aov)
-
-# PS (Large, Small) x ED (High, Low) on liking
-liking_food.aov <- anova_test(
-  data = like_long, dv = avg_liking, wid = id,
-  within = c(type, portion_size)
-  )
-get_anova_table(liking_food.aov)
-
-# PS (Large, Small) x ED (High, Low) on percieved fullness
-fullness.aov <- anova_test(
-  data = full_long, dv = avg_fullness, wid = id,
-  within = c(type, portion_size)
-  )
-get_anova_table(fullness.aov)
-
-# correlation between difference scores
-
-cor.test(analyzed_df$full_LvS_overall, analyzed_df$like_LvS_overall, use = "complete.obs")
-
-cor.test(analyzed_df$full_HvL_overall, analyzed_df$like_HvL_overall, use = "complete.obs")
-# the more full a child reports for high vs. low ED foods, the more they report liking high vs. low ED foods
-
-```
-
+# post-hoc BOLD analyses
 ``` {r BOLD correlation}
 library(stringr)
 
