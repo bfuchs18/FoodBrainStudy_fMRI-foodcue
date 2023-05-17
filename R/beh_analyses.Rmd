@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Code to plot and analyze behavioral data (liking, anticipated fullness, wanting)
+Code to plot and analyze in-scanner behavioral data (% wanting)
 
 ```{r setup, include=FALSE}
 library(lme4)
@@ -23,10 +23,9 @@ library(stringr)
 
 # import behavioral data
 beh_all <- read.delim("data/databases/task-foodcue_summary.tsv")
-#image_ratings_all <- read.csv("data/compiled/fmri_image_ratings.csv")
 
 # generate image_ratings databases
-source("R/data_org.R")
+#source("R/data_org.R")
 
 # source Alaina's functions
 source("R/barplot_functions.R")
@@ -71,62 +70,7 @@ beh_food<-beh[!(beh$cue_type=="office"),]
 
 # p_want analyses on subjects included in non-parametric analyses 
 
-```{r p_want correlations between conditions}
-
-beh_1 <- beh[beh$id == "1", c("id", "cond", "p_want_of_resp", "run")]
-beh_12 <- beh[(beh$id == "1" | beh$id == "2"), c("id", "cond", "p_want_of_resp", "run")]
-
-beh_HL <- beh_12[beh_12$cond == "HighLarge", c("id", "cond", "p_want_of_resp", "run")]
-
-
-# reshape run 1
-beh_p_want_r1 <- beh[beh$run == "1", c("id", "cond", "p_want_of_resp")]
-wide_r1 <- reshape(beh_p_want_r1, idvar = "id", timevar = "cond", direction = "wide")
-wide_r1$run <- "1"
-
-# reshape run 2
-beh_p_want_r2 <- beh[beh$run == "2", c("id", "cond", "p_want_of_resp")]
-wide_r2 <- reshape(beh_p_want_r2, idvar = "id", timevar = "cond", direction = "wide")
-wide_r2$run <- "2"
-
-beh_p_want_r3 <- beh[beh$run == "3", c("id", "cond", "p_want_of_resp")]
-wide_r3 <- reshape(beh_p_want_r3, idvar = "id", timevar = "cond", direction = "wide")
-wide_r3$run <- "3"
-
-beh_p_want_r4 <- beh[beh$run == "4", c("id", "cond", "p_want_of_resp")]
-wide_r4 <- reshape(beh_p_want_r4, idvar = "id", timevar = "cond", direction = "wide")
-wide_r4$run <- "4"
-
-beh_p_want_r5 <- beh[beh$run == "5", c("id", "cond", "p_want_of_resp")]
-wide_r5 <- reshape(beh_p_want_r5, idvar = "id", timevar = "cond", direction = "wide")
-wide_r5$run <- "5"
-
-#concat
-
-wider <- rbind(wide_r1, wide_r2, wide_r3, wide_r4, wide_r5)
-
-cor.test(wide_r1$p_want_of_resp.HighSmall, wide_r1$p_want_of_resp.HighLarge)
-cor.test(wide_r1$p_want_of_resp.LowSmall, wide_r1$p_want_of_resp.LowLarge)
-cor.test(wide_r1$p_want_of_resp.OfficeSmall, wide_r1$p_want_of_resp.OfficeLarge)
-
-
-ggplot(data = beh) +
-  geom_line(aes(x = run, y = p_want_of_resp, group = cond, col = cond))
-
-# for 1 sub
-ggplot(beh_1, aes(x = run, y = p_want_of_resp, color = cond)) +
-  geom_line(data = beh_1) + position_jitter(height = .2)
-
-ggplot(beh_12, aes(x = run, y = p_want_of_resp, color = cond)) +
-  geom_line(data = beh) + geom_line(aes(group = id))
-
-ggplot(beh_HL, aes(x = run, y = p_want_of_resp, color = as.factor(id))) + 
-  geom_line(data = beh_HL) + geom_line(aes(group = id))
-
-
-
-```
-
+Behavioral analyses:
 ``` {r p_want analyses}
 
 # remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
@@ -138,9 +82,6 @@ beh_food_clean$run <- as.factor(beh_food_clean$run)
 
 
 #### ANALYSES ####
-# portion size (large, small) x category (high, low, office) mixed model
-p_want_mixed_all = lmer(p_want_of_resp ~ portion_size*category + run + (1 | id), data = beh_clean)
-anova(p_want_mixed_all)
 
 # portion size (large, small) x cue type (food, office)
 p_want_mixed_cuetype = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_clean)
@@ -156,6 +97,7 @@ emmeans(p_want_mixed_ED, specs = pairwise ~energy_density|portion_size, type = "
 
 ```
 
+Figure 1:
 ``` {r p_want plots}
 
 # get predicted response after adjusting for covariates in model 
@@ -245,53 +187,6 @@ bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ym
 
 
 #=
-```
-
-```{r p_want analyses - food only}
-# Database options:
-#beh_food_clean
-#beh_food_analyzed_ED
-#beh_food_analyzed_PS
-
-beh_food_clean<-beh_food[!is.na(beh_food$p_want_of_resp),]
-
-
-# portion size (large, small) x food-cue type (high, low)
-p_want_mixed_food = lmer(p_want_of_resp ~ portion_size*energy_density + run + (1 | id), data = beh_food_clean)
-anova(p_want_mixed_food)
-
-# get predicted response after adjusting for run
-beh_food_clean$predict_p_want <- predict(p_want_mixed_food, type="response")
-
-#plot with ggplot
-ggplot(data=beh_food_clean, aes(x=cue_type, y=predict_p_want, fill=portion_size)) +
-  geom_bar(stat="identity", position=position_dodge())+
-  scale_fill_brewer(palette="Paired")+
-  theme_minimal()
-
-# violin plot 
-plot <- ggplot(beh_food_clean, aes(x=cue_type, y=predict_p_want, fill = portion_size)) +
-  geom_violin(trim=FALSE)+
- # geom_signif(stat = "identity", inherit.aes = FALSE,
-   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
-  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
-  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
-  scale_fill_manual(values = c("lightgrey", "grey35")) +
-  labs(title="N-Back Task",
-       x="cue_type",
-       y = "p_want") +
- # theme_pubr(base_size = 16) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank())
-
-# barplot with alaina's function
-ps_by_ed <- data.frame(beh_food_clean$portion_size, beh_food_clean$cue_type)
-mean_cond = means.function.na(beh_food_clean, beh_food_clean$p_want_of_resp, ps_by_ed) # get mean ps and ed
-se_cond = se.function.na(beh_food_clean, beh_food_clean$p_want_of_resp, ps_by_ed)
-
-beh_food_clean$portion_size <- as.factor(beh_food_clean$portion_size)
-bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_food_clean$portion_size)
-
 ```
 
 
