@@ -22,6 +22,7 @@ library(dplyr)
 library(psych)
 library(emmeans)
 library(stringr)
+library(ggsignif)
 
 # import behavioral data
 beh_all <- read.delim("data/databases/task-foodcue_summary.tsv")
@@ -54,7 +55,7 @@ Prepare dataframe of in-scanner behavior (p_want)
 beh_all$block_proc <- substring(beh_all$block_proc, 2)
 
 # Add portion_size and cue-type columns
-beh_all$portion_size <- ifelse(grepl("Large", beh_all$cond), "Large", "Small")
+beh_all$portion_size <- ifelse(grepl("Large", beh_all$cond), "Larger", "Smaller")
 beh_all$energy_density <- ifelse(grepl("High", beh_all$cond), "HighED", 
                        ifelse(grepl("Low", beh_all$cond), "LowED", "NA"))
 beh_all$cue_type <- ifelse(grepl("High", beh_all$cond), "food", 
@@ -107,92 +108,48 @@ Figure 1:
 ``` {r p_want plots}
 
 # get predicted response after adjusting for covariates in model 
-beh_clean$predict_p_want_mixed_all <- predict(p_want_mixed_all, type="response")
 beh_clean$predict_p_want_mixed_cuetype <- predict(p_want_mixed_cuetype, type="response")
 beh_food_clean$predict_p_want_mixed_ED <- predict(p_want_mixed_ED, type="response")
 
-#### BAR PLOTS with ggplot####
-# by category (high, low, office)
-ggplot(data=beh_clean, aes(x=category, y=predict_p_want_mixed_all, fill=portion_size)) +
-  geom_bar(stat="identity", position=position_dodge())+
-  scale_fill_brewer(palette="Paired")+
-  theme_minimal()
-
-# by cue (food, office)
-ggplot(data=beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype, fill=portion_size)) +
-  geom_bar(stat="identity", position=position_dodge())+
-  scale_fill_brewer(palette="Paired")+
-  theme_minimal()
-
-# by ED (high, low)
-ggplot(data=beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_ED, fill=portion_size)) +
-  geom_bar(stat="identity", position=position_dodge())+
-  scale_fill_brewer(palette="Paired")+
-  theme_minimal()
-
 #### VIOLIN PLOTS with ggplot####
 
-# by category (high, low, office)
-plot_category <- ggplot(beh_clean, aes(x=category, y=predict_p_want_mixed_all, fill = portion_size)) +
-  geom_violin(trim=FALSE)+
- # geom_signif(stat = "identity", inherit.aes = FALSE,
-   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
-  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
-  geom_boxplot(aes(group = interaction(category, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
-  scale_fill_manual(values = c("lightgrey", "grey35")) +
-  labs(title="Percent want",
-       x="category",
-       y = "p_want") +
- # theme_pubr(base_size = 16) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank())
-
-# by cue (food, office)
+# Amount (large, small) x cue (food, office)
 plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype, fill = portion_size)) +
+  theme_bw() +
   geom_violin(trim=FALSE)+
- # geom_signif(stat = "identity", inherit.aes = FALSE,
-   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
-  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
+  geom_signif(comparisons = list(c("food","office")), y_position = 1.3,
+              map_signif_level = TRUE)+
   geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
-  labs(title="Percent want",
-       x="cue type",
-       y = "p_want") +
- # theme_pubr(base_size = 16) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank()) +
-    ylim(0, 1.5)
+  labs(x="Cue Type",
+       y = "Predicted %want") +
+  theme(legend.title = element_blank()) +
+  theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
+  ylim(0, 1.5) + 
+  scale_x_discrete(labels = c("food" = "Food",
+                              "office" = "Office Supplies"))
 
+plot_cuetype
 
-# by ED (high, low)
+# # Food amount (large, small) x ED (high, low)
 plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_ED, fill = portion_size)) +
+  theme_bw() +
   geom_violin(trim=FALSE)+
- # geom_signif(stat = "identity", inherit.aes = FALSE,
-   #            data = data.frame(x = c(1.7, 0.7, 2.7), xend = c(3.3, 3.3, 3.3), y = c(105, 110, 85),  annotation = c("***", " ***", "*")),
-  #             aes(x = x, xend = xend, y = y, yend = y, annotation = annotation)) +
+  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 1.3,
+              map_signif_level = TRUE) +
   geom_boxplot(aes(group = interaction(energy_density, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
-  labs(title="Percent want",
-       x="ED",
-       y = "p_want") +
- # theme_pubr(base_size = 16) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.title = element_blank()) +
-  ylim(0, 1.5)
+  labs(x="Energy Density",
+       y = "Predicted %want") +
+  theme(legend.title = element_blank()) +
+  theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
+  ylim(0, 1.5) +
+  scale_x_discrete(labels = c("HighED" = "Higher",
+                              "LowED" = "Lower"))
+
+plot_ED
 
 
-
-
-#### BARPLOTS with alaina's function ####
-ps_by_type <- data.frame(beh_clean$portion_size, beh_clean$cue_type)
-mean_cond = means.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type) # get mean ps and ed
-se_cond = se.function.na(beh_clean, beh_clean$p_want_of_resp, ps_by_type)
-
-beh_clean$portion_size <- as.factor(beh_clean$portion_size)
-bar_graph.se(means = mean_cond, er = se_cond, xlab = "", ylab = "", ymax = 1, ymin = 0, group = beh_clean$portion_size)
-
-
-#=
 ```
 
 # Prepare for parametric analyses
