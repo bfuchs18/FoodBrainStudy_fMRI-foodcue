@@ -14,6 +14,9 @@ bids_pardat <- anthro_data[c('id', 'sex', 'age_yr', 'bmi_percentile', 'ethnicity
 
 ############ Prepare .tsv for export ###########
 
+# remove subject 31 from database -- they became inelligible for the study due to ADHD diagnosis
+bids_pardat <- bids_pardat[! bids_pardat$id == 31, ]
+
 # rename variables to be bids compliant
 names(bids_pardat)[names(bids_pardat) == "id"] <- "participant_id"
 names(bids_pardat)[names(bids_pardat) == "age_yr"] <- "age"
@@ -28,4 +31,4 @@ bids_pardat$ethnicity <- haven::as_factor(bids_pardat$ethnicity)
 bids_pardat$risk_status_mom <- haven::as_factor(bids_pardat$risk_status_mom)
 
 # export participants.tsv
-write.table(bids_pardat, 'data/compiled/participants.tsv', sep='\t', row.names = FALSE, quote=FALSE)
+write.table(bids_pardat, 'data/derivatives_R/participants.tsv', sep='\t', row.names = FALSE, quote=FALSE)
