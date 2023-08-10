@@ -107,7 +107,7 @@ emmeans(p_want_mixed_ED, specs = pairwise ~energy_density|portion_size, type = "
 Figure 1:
 ``` {r p_want plots}
 
-# get predicted response after adjusting for covariates in model 
+# get adjusted response after adjusting for covariates in model 
 beh_clean$predict_p_want_mixed_cuetype <- predict(p_want_mixed_cuetype, type="response")
 beh_food_clean$predict_p_want_mixed_ED <- predict(p_want_mixed_ED, type="response")
 
@@ -122,7 +122,7 @@ plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype
   geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Cue Type",
-       y = "Predicted %want") +
+       y = "Adjusted %want") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
   ylim(0, 1.5) + 
@@ -140,7 +140,7 @@ plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_E
   geom_boxplot(aes(group = interaction(energy_density, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Energy Density",
-       y = "Predicted %want") +
+       y = "Adjusted %want") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
   ylim(0, 1.5) +
