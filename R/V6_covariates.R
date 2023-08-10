@@ -105,6 +105,6 @@ CAMS_data <- compiled[,c('id','cams_pre_mri')]
 V6_covar <- merge(x = ff_concat, y = CAMS_data, by = "id", all.x = TRUE)
 
 #### Export database for use in imaging analyses ####
-write.csv(V6_covar, 'data/compiled/V6_covariates.csv', row.names = FALSE)
+write.csv(V6_covar, 'data/derivatives_R/V6_covariates.csv', row.names = FALSE)
 
 
