@@ -3,7 +3,7 @@
 # demographics_compiled.csv -- contains demographic and visit 6 variables (e.g., fullness, scan status)
 #                               for participants who attended visit 6
 # fmri_image_ratings.csv -- contains liking and fullness ratings from post-fmri behavioral assessment (300 ratings per child)
-# censorp_byrun.csv -- long database that contains the percent of TRs censored from food/office blocks for each run
+# censor_sum.csv -- long database that contains the percent of TRs censored from food/office blocks for each run
 
 
 # load packages
@@ -11,25 +11,26 @@ library(haven)
 library(data.table)
 library(haven)
 
+
 ############ Load Data ###########
 
 # anthropometric data
-anthro_data <- read_sav("data/databases/anthro_data.sav")
+anthro_data <- read_sav("data/raw/anthro_data.sav")
 
 # visit 6 database
-V6 <- read_sav("data/databases/visit6_data.sav")
+V6 <- read_sav("data/raw/visit6_data.sav")
 
 # scan status redcap form
-scanning <- read.csv("data/databases/FoodAndBrainR01DataP-Scansroar_DATA_2023-01-12_1521.csv")
+scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar_DATA_2023-01-12_1521.csv")
 
 # motion summary
-mot_sum <- read.delim("data/databases/task-foodcue_avg-fd.tsv")
+mot_sum <- read.delim("data/derivatives_roar/task-foodcue_avg-fd.tsv")
 
 # import index file that specifies children included in analyses
-index_wide <- read.table("data/databases/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+index_wide <- read.table("data/derivatives_roar/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
 
 # censor summary
-censor_sum <- read.delim("data/databases/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+censor_sum <- read.delim("data/derivatives_roar/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 
 ############ Prep Data ###########
 
@@ -71,7 +72,8 @@ V6_compiled$included <- as.integer(V6_compiled$id %in% index$id)
 V6_compiled <- setDT(V6_compiled)[id %chin% V6$id]
 
 ############ Export ##########
-write.csv(V6_compiled, 'data/compiled/demographics_compiled.csv', row.names = FALSE)
-write.csv(image_ratings, 'data/compiled/fmri_image_ratings.csv', row.names = FALSE)
-write.csv(censor_sum, 'data/compiled/censor_sum.csv', row.names = FALSE)
+write.csv(V6_compiled, 'data/derivatives_R/demographics_compiled.csv', row.names = FALSE)
+write.csv(image_ratings, 'data/derivatives_R/fmri_image_ratings.csv', row.names = FALSE)
+write.csv(censor_sum, 'data/derivatives_R/censor_sum.csv', row.names = FALSE)
+
 
