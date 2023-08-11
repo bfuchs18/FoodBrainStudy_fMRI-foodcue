@@ -50,10 +50,6 @@ names(index) <- "id" # add column name
 censor_sum <- read.delim("data/derivatives_roar/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
 
-#betas
-rfusiform <- read.delim("data/databases/PM-ED_rfusiform_betas.txt")
-names(rfusiform)[names(rfusiform) == 'sub'] <- 'id'
-
 ```
 
 Prepare dataframe of in-scanner behavior (p_want)
@@ -226,7 +222,9 @@ novar_office <- distinct_office[(distinct_office$distinct==1),]
 novar_office$id # id 4  17  26  49  56  84  89 116
 nrow(novar_office) # N = 8
 
+```
 
+```{r average wanting by analyzed condition}
 #### generate beh databases with analyzed sample ####
 
 # remove subjects with no variability in p_want for the given analyses
@@ -477,88 +475,4 @@ full_byproc <- ggplot(full_byproc_long, aes(x=proc, y=avg_full, fill=cond)) +
     geom_boxplot() +
     facet_wrap(~cond)
 full_byproc
-```
-
-
-# post-hoc BOLD analyses
-``` {r BOLD correlation}
-library(stringr)
-
-# clean betas dataframe
-rfusiform$high_beta_temp <- str_trim(rfusiform$high_beta) # removes white space at start of string
-rfusiform$low_beta_temp <- str_trim(rfusiform$low_beta) # removes white space at start of string
-
-rfusiform$high_beta <- as.numeric(sub(" .*", "", rfusiform$high_beta_temp)) # remove everything after first " ", make numeric
-rfusiform$low_beta <- as.numeric(sub(" .*", "", rfusiform$low_beta_temp)) # remove everything after first " ", make numeric
-
-# wide to long
-rfusiform_long <- reshape2::melt(rfusiform,
-        # ID variables - all the variables to keep but not split apart on
-    id.vars=c("id"),
-        # The source columns
-    measure.vars=c("high_beta","low_beta"),
-        # Name of the destination column that will identify the original
-        # column that the measurement came from
-    variable.name="condition",
-    value.name="betas"
-)
-
-#### full sample stats ####
-# summary stats
-rfusiform_long %>%
-  group_by(condition) %>%
-  get_summary_stats(betas, type = "common")
-
-# violin plot
-ggplot(rfusiform_long, aes(x=condition, y=betas)) + 
-    geom_violin(trim=FALSE) + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
-
-# t-test
-t.test(rfusiform$high_beta, rfusiform$low_beta, paired = TRUE, alternative = "two.sided")
-
-#### remove 120 ####
-rfusiform_long_no120<-rfusiform_long[!(rfusiform_long$id==120) ,]
-rfusiform_no120<-rfusiform[!(rfusiform$id==120) ,]
-
-# violin plot
-ggplot(rfusiform_long_no120, aes(x=condition, y=betas)) + 
-    geom_violin(trim=FALSE) + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
-
-# t-test
-t.test(rfusiform_no120$high_beta, rfusiform_no120$low_beta, paired = TRUE, alternative = "two.sided")
-# still significantly different without 120
-
-#### remove 55 ####
-rfusiform_long_no55<-rfusiform_long[!(rfusiform_long$id==55) ,]
-rfusiform_no55<-rfusiform[!(rfusiform$id==55) ,]
-
-# violin plot
-ggplot(rfusiform_long_no55, aes(x=condition, y=betas)) + 
-    geom_violin(trim=FALSE) + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
-
-# t-test
-t.test(rfusiform_no55$high_beta, rfusiform_no55$low_beta, paired = TRUE, alternative = "two.sided")
-# still significantly different without 55
-
-#### remove 120 and 55 ####
-rfusiform_long_nooutliers<-rfusiform_long[!(rfusiform_long$id==55 | rfusiform_long$id==120) ,]
-rfusiform_nooutliers<-rfusiform[!(rfusiform_long$id==55 | rfusiform_long$id==120) ,]
-
-# violin plot
-ggplot(rfusiform_long_nooutliers, aes(x=condition, y=betas)) + 
-    geom_violin(trim=FALSE) + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
-
-# t-test
-t.test(rfusiform_nooutliers$high_beta, rfusiform_nooutliers$low_beta, paired = TRUE, alternative = "two.sided")
-# still significantly different without 55 and 120
-
-# summary stats
-rfusiform_long_nooutliers %>%
-  group_by(condition) %>%
-  get_summary_stats(betas, type = "common")
-
 ```
