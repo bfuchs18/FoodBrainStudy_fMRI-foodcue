@@ -24,13 +24,13 @@ V6 <- read_sav("data/raw/visit6_data.sav")
 scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar_DATA_2023-01-12_1521.csv")
 
 # motion summary
-mot_sum <- read.delim("data/derivatives_roar/task-foodcue_avg-fd.tsv")
+mot_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_avg-fd.tsv")
 
 # import index file that specifies children included in analyses
-index_wide <- read.table("data/derivatives_roar/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+index_wide <- read.table("BIDS/derivatives/analyses/foodcue-paper1/level2/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
 
 # censor summary
-censor_sum <- read.delim("data/derivatives_roar/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 
 ############ Prep Data ###########
 
