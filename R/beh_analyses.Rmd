@@ -36,18 +36,18 @@ library(emmeans)
 library(stringr)
 library(ggsignif)
 
-#### import derivatives from roar to use in analyses ####
+#### import BIDS derivatives to use in analyses ####
 
 # import behavioral data
-beh_all <- read.delim("data/derivatives_roar/task-foodcue_summary.tsv") 
+beh_all <- read.delim("BIDS/derivatives/preprocessed/beh/task-foodcue_summary.tsv") 
 
 # import index file that specifies children included in analyses
-index_wide <- read.table("data/derivatives_roar/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+index_wide <- read.table("BIDS//derivatives/analyses/foodcue-paper1/level2/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
 index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
 names(index) <- "id" # add column name
 
 #censor sum database
-censor_sum <- read.delim("data/derivatives_roar/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
 
 ```
