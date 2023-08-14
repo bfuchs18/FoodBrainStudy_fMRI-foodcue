@@ -15,8 +15,6 @@ library(ggplot2)
 library(dplyr)
 library(haven)
 library(reshape2)
-library(scipub) # includes FullTable1 function
-library(htmlTable) # needed if want to generate HTML table with FullTable1 
 ```
 
 ```{r load generated datasets, include=FALSE}
@@ -32,10 +30,11 @@ source("R/data_org.R")
 ```{r set up pre-mri freddy fullness}
 # Create 'compiled' dataframe with pre-MRI fullness variables
 
-# Source pre_mri_fullness.R to generate pre-MRI fullness variables
+# Source V6_covariates.R to generate pre-MRI fullness variables
   # will create 'compiled' database that is V6_compiled + pre_mri_ff and pre_mri_snack variables
   # will generate a dataframe called ff_concat that contains imputed values for subject 54
-source("R/V6_covariates.R")
+
+source("R/gen_V6_covariates.R")
 
 ```
 
@@ -160,9 +159,6 @@ compiled<-merge(x=compiled,y=TR_count,by="id",all.x=TRUE)
 # remove subject 31 from dataframes -- they are inelligible for the study due to ADHD
 attended_df <- compiled[! compiled$id == 31, ]
 
-# isolate subjects who were scanned on V6
-scanned_df <- attended_df[attended_df$fmri_pp_complete == 1, ]
-
 # isolate subjects included in imaging analyses
 analyzed_df <- attended_df[attended_df$included == 1, ]
 
@@ -175,6 +171,9 @@ analyzed_df <- attended_df[attended_df$included == 1, ]
 
 # number of subjects who attended V6
 nrow(attended_df)
+
+# frequency of children accompanied by mother (0) and father (1)
+table(attended_df$parent_respondent)
 
 # number of subjects included in analyses
 sum(attended_df$included == 1)
@@ -190,11 +189,8 @@ table(attended_df$mom_bmi_method)
 table(analyzed_df$mom_bmi_method)
 ```
 
-#### Demographics
-```{r demographics table by inclusion status}
-
-## note: if want to include all children who attended V6 --- can use 'attended_df' df
-## note: if want to include all children who were scanned --- can use 'scanned_df' df 
+#### Demographics by inclusion status
+```{r Table S1: demo by inclusion status}
 
 # prepare variables
 attended_df$included <- factor(attended_df$included, levels=c(0,1),
@@ -240,14 +236,6 @@ label(attended_df$fmi) <- "Fat mass index"
 # generate table: include vs. excluded
 table1(~ sex + age_yr + race + ethnicity + income_recode + mom_edu_recode + risk_status_mom + mom_bmi_method + bmi_percentile + fmi| included, data=attended_df)
 
-# generate able with stats -- error when including race
-### variable names not updating for income_recode and mom_edu_recode 
-FullTable1(
-  data = attended_df, vars = c("sex", "age_yr", "income_recode","mom_edu_recode", "bmi_percentile", "fmi"),
-  var_names = c("sex","age (years)", "family income", "Maternal Education", "BMI percentile", "Fat mass index"),
-  strata = "included", stars = "none", p_col = FALSE,
-  html = c(TRUE) # for html table
-)
 ```
 
 ```{r compare demo: included vs excluded}
@@ -279,98 +267,11 @@ t.test(attended_df$fmi ~ attended_df$included, var.equal = FALSE)
 
 ```
 
-```{r demographics table by risk}
+#### Demographics and MRI variables by familial risk status
 
-# prepare variables
-analyzed_df$included <- factor(analyzed_df$included, levels=c(0,1),
-         labels=c("Excluded", 
-                  "Included"))
+These analyses are restricted to children included in analyses (analyzed_df)
 
-analyzed_df$sex <- factor(analyzed_df$sex, levels=c(0,1),
-                            labels=c("Male", 
-                                "Female"))
-
-analyzed_df$race <- factor(analyzed_df$race, levels=c(0,1,2,3,4),
-                            labels=c("White", 
-                                "American Indian/Alaskan Native",
-                                "Asian",
-                                "Black/African American",
-                                "Hawaiian/Pacific Islander"))
-
-analyzed_df$ethnicity <- factor(analyzed_df$ethnicity, levels=c(0,1),
-                            labels=c("Not Hispanic or Latino", 
-                                "Hispanic or Latino"))
-
-
-analyzed_df$risk_status_mom <- factor(analyzed_df$risk_status_mom, levels=c(0,1,2),
-                            labels=c("Low Risk", 
-                                "High Risk", "Neither"))
-
-# drop unused factor levels (i.e., "Neither" level)
-analyzed_df$risk_status_mom <- droplevels(analyzed_df$risk_status_mom)
-
-# assign labels for table1()
-label(analyzed_df$sex) <- "Sex"
-label(analyzed_df$race) <- "Race"
-label(analyzed_df$ethnicity) <- "Ethnicity"
-label(analyzed_df$age_yr) <- "Age, yrs"
-label(analyzed_df$income_recode) <- "Family Income"
-label(analyzed_df$mom_edu_recode) <- "Maternal Education"
-label(analyzed_df$bmi_percentile) <- "BMI percentile"
-label(analyzed_df$risk_status_mom) <- "Familial risk status"
-label(analyzed_df$mom_bmi_method) <- "Maternal anthropometrics"
-
-
-# # function to round percentages to whole number --- does not round for missing data
-# my.render.cat <- function(x) {
-#     c("", sapply(stats.default(x), function(y) with(y,
-#         sprintf("%d (%0.f%%)", FREQ, PCT))))
-# }
-
-# generate table: high vs. low risk -- dont included 'overall' since that info is in the previous table
-table1(~ sex + age_yr + race + ethnicity + income_recode + mom_edu_recode + bmi_percentile + mom_bmi_method| risk_status_mom, data=analyzed_df)
-#       render.categorical=my.render.cat)
-
-# generate able with stats -- error when including race
-### variable names not updating for income_recode and mom_edu_recode 
-FullTable1(
-  data = attended_df, vars = c("sex", "age_yr", "income_recode","mom_edu_recode", "bmi_percentile"),
-  var_names = c("sex","age (years)", "family income", "Maternal Education", "BMI percentile"),
-  strata = "risk_status_mom", stars = "none", p_col = FALSE,
-  html = c(TRUE) # for html table
-)
-```
-
-
-```{r compare demo: high vs low}
-
-# sex
-chisq.test(analyzed_df$risk_status_mom, analyzed_df$sex, correct=TRUE)
-
-# age
-t.test(analyzed_df$age ~ analyzed_df$risk_status_mom, var.equal = FALSE)
-
-# race -- is this correct?
-fisher.test(analyzed_df$risk_status_mom, analyzed_df$race)
-
-# income
-fisher.test(analyzed_df$risk_status_mom, analyzed_df$income_recode)
-
-# maternal education
-fisher.test(analyzed_df$risk_status_mom, analyzed_df$mom_edu_recode)
-
-# BMI %tile
-t.test(analyzed_df$bmi_percentile ~ analyzed_df$risk_status_mom, var.equal = FALSE)
-
-# FMI 
-t.test(analyzed_df$fmi ~ analyzed_df$risk_status_mom, var.equal = FALSE)
-
-
-
-```
-
-
-```{r demo + MRI table by risk}
+```{r Table 1: demo + MRI variables by risk}
 
 # prepare variables
 analyzed_df$included <- factor(analyzed_df$included, levels=c(0,1),
@@ -410,8 +311,6 @@ label(analyzed_df$mom_edu_recode) <- "Maternal Education"
 label(analyzed_df$bmi_percentile) <- "BMI percentile"
 label(analyzed_df$risk_status_mom) <- "Familial risk status"
 label(analyzed_df$fmi) <- "Fat mass index"
-
-
 label(analyzed_df$n_run_good) <- "Analyzed runs (n)"
 label(analyzed_df$n_vol_goodruns) <- "Analyzed timepoints (n)"
 label(analyzed_df$pre_mri_ff) <- "Pre-MRI fullness"
@@ -419,59 +318,37 @@ label(analyzed_df$fd_avg_allruns) <- "Average framewise displacement"
 label(analyzed_df$cams_pre_mri) <- "Pre-MRI anxiety"
 label(analyzed_df$pre_mri_snack) <- "Consumed snack"
 
-
-# # function to round percentages to whole number --- does not round for missing data
-# my.render.cat <- function(x) {
-#     c("", sapply(stats.default(x), function(y) with(y,
-#         sprintf("%d (%0.f%%)", FREQ, PCT))))
-# }
-
-# function to format continuous variables
-my.render.cont <- function(x) {
-    with(stats.apply.rounding(stats.default(x), digits=2), c("",
-        "Mean (SD)"=sprintf("%s (%s)", MEAN, SD)))
-}
-
-# generate table: high vs. low risk -- dont included 'overall' since that info is in the previous table
-table1(~ age_yr + bmi_percentile + fmi + sex +  + race + ethnicity + income_recode + mom_edu_recode + n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + cams_pre_mri + pre_mri_snack | risk_status_mom, data=analyzed_df, render.continuous=my.render.cont)
-#       render.categorical=my.render.cat)
-
-table1(~ age_yr + bmi_percentile + fmi + sex +  + race + ethnicity + income_recode + mom_edu_recode + n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + cams_pre_mri + pre_mri_snack | risk_status_mom, data=analyzed_df)
-#       render.categorical=my.render.cat)
-
-# generate able with stats -- error when including race
-### variable names not updating for income_recode and mom_edu_recode 
-FullTable1(
-  data = attended_df, vars = c("sex", "age_yr", "income_recode","mom_edu_recode", "bmi_percentile"),
-  var_names = c("sex","age (years)", "family income", "Maternal Education", "BMI percentile"),
-  strata = "risk_status_mom", stars = "none", p_col = FALSE,
-  html = c(TRUE) # for html table
-)
-```
-
-#### MRI variables
-```{r MRI table}
-
-
-# assign labels for table1()
-label(analyzed_df$n_run_good) <- "Analyzed runs (n)"
-label(analyzed_df$n_vol_goodruns) <- "Analyzed timepoints (n)"
-label(analyzed_df$pre_mri_ff) <- "Pre-MRI fullness"
-label(analyzed_df$fd_avg_allruns) <- "Average framewise displacement"
-label(analyzed_df$cams_pre_mri) <- "Pre-MRI anxiety"
-label(analyzed_df$pre_mri_snack) <- "Consumed snack"
-
-analyzed_df$risk_status_mom <- factor(analyzed_df$risk_status_mom, levels=c(0,1,2),
-                            labels=c("Low Risk", 
-                                "High Risk", "Neither"))
-
-
-# generate table 
-table1(~ n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + pre_mri_snack + cams_pre_mri | risk_status_mom ,data=analyzed_df)
+# generate table
+table1(~ age_yr + bmi_percentile + fmi + sex +  race + ethnicity + income_recode + mom_edu_recode + n_run_good + n_vol_goodruns + fd_avg_allruns + pre_mri_ff + cams_pre_mri + pre_mri_snack | risk_status_mom, data=analyzed_df)
 
 ```
 
-```{r compare MRI by risk age and sex}
+```{r compare demo: by risk}
+
+# sex
+chisq.test(analyzed_df$risk_status_mom, analyzed_df$sex, correct=TRUE)
+
+# age
+t.test(analyzed_df$age ~ analyzed_df$risk_status_mom, var.equal = FALSE)
+
+# race
+fisher.test(analyzed_df$risk_status_mom, analyzed_df$race)
+
+# income
+fisher.test(analyzed_df$risk_status_mom, analyzed_df$income_recode)
+
+# maternal education
+fisher.test(analyzed_df$risk_status_mom, analyzed_df$mom_edu_recode)
+
+# BMI %tile
+t.test(analyzed_df$bmi_percentile ~ analyzed_df$risk_status_mom, var.equal = FALSE)
+
+# FMI 
+t.test(analyzed_df$fmi ~ analyzed_df$risk_status_mom, var.equal = FALSE)
+
+```
+
+```{r compare MRI: by risk age and sex}
 
 # by age
 cor.test(analyzed_df$age, analyzed_df$n_run_good, method=c("pearson"))
@@ -491,7 +368,6 @@ t.test(analyzed_df$cams_pre_mri ~ analyzed_df$sex, var.equal = FALSE)
 chisq.test(analyzed_df$pre_mri_snack, analyzed_df$sex, correct=TRUE)
 
 # frequency table for snack consumption by sex
-analyzed_df
 analyzed_df %>%
   group_by(sex,pre_mri_snack) %>%
   summarize(Freq=n())
@@ -505,7 +381,6 @@ t.test(analyzed_df$cams_pre_mri ~ analyzed_df$risk_status_mom, var.equal = FALSE
 chisq.test(analyzed_df$pre_mri_snack, analyzed_df$risk_status_mom, correct=TRUE)
 
 # frequency table for snack consumption by risk_status_mom
-analyzed_df
 analyzed_df %>%
   group_by(risk_status_mom,pre_mri_snack) %>%
   summarize(Freq=n())
