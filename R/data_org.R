@@ -21,7 +21,7 @@ anthro_data <- read_sav("data/raw/anthro_data.sav")
 V6 <- read_sav("data/raw/visit6_data.sav")
 
 # scan status redcap form
-scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar_DATA_2023-01-12_1521.csv")
+scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar.csv")
 
 # motion summary
 mot_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_avg-fd.tsv")
@@ -68,7 +68,7 @@ V6_compiled$included <- as.integer(V6_compiled$id %in% index$id)
 
 ############ Subset dataframes by visit status ###########
 
-# isolate subjects who attened visit 6
+# isolate subjects who attended visit 6
 V6_compiled <- setDT(V6_compiled)[id %chin% V6$id]
 
 ############ Export ##########
