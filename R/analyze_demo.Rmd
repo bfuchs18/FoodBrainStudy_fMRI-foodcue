@@ -104,7 +104,7 @@ compiled$fmi <- (compiled$dxa_total_fat_mass / 1000) / ((compiled$height_avg * 0
 
 ```{r generate MRI variables}
 #### assess exclusion rationale ####
-# count the number of runs completed per subject
+# count the number of food cue runs initiated per subject
 compiled$n_run_complete <- rowSums(compiled[ , c("fmri_pp_scans_roar___2","fmri_pp_scans_roar___3", "fmri_pp_scans_roar___4","fmri_pp_scans_roar___5","fmri_pp_scans_roar___6")])
 
 # count the number of runs per subject with less than 20% of interest_TRs censored
