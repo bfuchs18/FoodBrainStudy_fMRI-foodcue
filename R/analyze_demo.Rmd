@@ -166,27 +166,32 @@ analyzed_df <- attended_df[attended_df$included == 1, ]
 
 # Descriptive statistics
 
-#### Participant count
-```{r inclusion and exclusion numbers}
+#### Participant count - sections 2.1, 2.4
+```{r }
 
-# number of subjects who attended V6
+# number of subjects who attended V6 (section 2.1)
 nrow(attended_df)
 
-# frequency of children accompanied by mother (0) and father (1)
+# frequency of children accompanied by mother (0) and father (1); (section 2.1
 table(attended_df$parent_respondent)
 
-# number of subjects included in analyses
+# number of subjects included in analyses (section 2.1)
 sum(attended_df$included == 1)
 
-# number of subjects excluded from analyses
+# number of subjects excluded from analyses (section 2.1)
 sum(attended_df$included == 0)
+
+# proportion of maternal BMI method (section 2.4)
+prop.table(table(attended_df$mom_bmi_method))
+
+```
+
+#### fMRI exclusion numbers (section 3.3.3)
+```{r fmri exclusion rationale }
 
 # frequency of each exclusion rationale
 table(attended_df$exc_rationale)
 
-# frequency of maternal BMI method
-table(attended_df$mom_bmi_method)
-table(analyzed_df$mom_bmi_method)
 ```
 
 #### Demographics by inclusion status
