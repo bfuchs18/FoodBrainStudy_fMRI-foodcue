@@ -2,5 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-data/
+data/derivatives_R/
+data/raw/*pna*
+data/raw/*visit_notes*
+
 Rplot*
+.DS_Store
