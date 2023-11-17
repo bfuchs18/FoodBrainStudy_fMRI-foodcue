@@ -1,0 +1,474 @@
+---
+title: "post-scan rating analyses"
+author: "baf44"
+date: "1/23/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Code to plot and analyze liking and fullness ratings
+
+This code uses the following derivative files:
+
+(1) 
+(2) 
+
+# Setup
+
+```{r imports, include=FALSE}
+library(lme4)
+library(lmerTest) # need this to get p-values with anova()
+library(plyr)
+library(maditr)
+library(ggplot2)
+library(rstatix)
+library(dplyr)
+library(psych)
+library(emmeans)
+library(stringr)
+library(ggsignif)
+
+#### import BIDS derivatives to use in analyses ####
+
+# import behavioral data
+image_ratings <- read.csv("data/derivatives_R/fmri_image_ratings.csv")
+
+# import index file that specifies children included in analyses
+index_wide <- read.table("BIDS//derivatives/analyses/foodcue-paper1/level2/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
+index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
+names(index) <- "id" # add column name
+
+#censor sum database
+censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
+
+```
+
+# Prepare post-scanner ratings
+```{r compute avg liking and fullness ratings}
+# Conditions:
+# A = HighLarge
+# B = HighSmall
+# C = LowLarge
+# D = LowSmall
+# E = OfficeLarge
+# F = OfficeSmall
+
+#### compute average liking ratings  ####
+# note: in grep, ^ indicates the start of the string, $ indicates the end, .+ gets everything in between
+
+# for each condition overall
+image_ratings$like_HighLarge <- rowMeans(image_ratings[grep('^mrivas_a.+like$', names(image_ratings))])
+image_ratings$like_HighSmall <- rowMeans(image_ratings[grep('^mrivas_b.+like$', names(image_ratings))])
+image_ratings$like_LowLarge <- rowMeans(image_ratings[grep('^mrivas_c.+like$', names(image_ratings))])
+image_ratings$like_LowSmall <- rowMeans(image_ratings[grep('^mrivas_d.+like$', names(image_ratings))])
+image_ratings$like_OfficeLarge <- rowMeans(image_ratings[grep('^mrivas_e.+like$', names(image_ratings))])
+image_ratings$like_OfficeSmall <- rowMeans(image_ratings[grep('^mrivas_f.+like$', names(image_ratings))])
+
+# for each condition by block procedure 
+image_ratings$like_a1 <- rowMeans(image_ratings[grep('^mrivas_a1.+like$', names(image_ratings))])
+image_ratings$like_a2 <- rowMeans(image_ratings[grep('^mrivas_a2.+like$', names(image_ratings))])
+image_ratings$like_a3 <- rowMeans(image_ratings[grep('^mrivas_a3.+like$', names(image_ratings))])
+image_ratings$like_a4 <- rowMeans(image_ratings[grep('^mrivas_a4.+like$', names(image_ratings))])
+image_ratings$like_a5 <- rowMeans(image_ratings[grep('^mrivas_a5.+like$', names(image_ratings))])
+
+image_ratings$like_b1 <- rowMeans(image_ratings[grep('^mrivas_b1.+like$', names(image_ratings))])
+image_ratings$like_b2 <- rowMeans(image_ratings[grep('^mrivas_b2.+like$', names(image_ratings))])
+image_ratings$like_b3 <- rowMeans(image_ratings[grep('^mrivas_b3.+like$', names(image_ratings))])
+image_ratings$like_b4 <- rowMeans(image_ratings[grep('^mrivas_b4.+like$', names(image_ratings))])
+image_ratings$like_b5 <- rowMeans(image_ratings[grep('^mrivas_b5.+like$', names(image_ratings))])
+
+image_ratings$like_c1 <- rowMeans(image_ratings[grep('^mrivas_c1.+like$', names(image_ratings))])
+image_ratings$like_c2 <- rowMeans(image_ratings[grep('^mrivas_c2.+like$', names(image_ratings))])
+image_ratings$like_c3 <- rowMeans(image_ratings[grep('^mrivas_c3.+like$', names(image_ratings))])
+image_ratings$like_c4 <- rowMeans(image_ratings[grep('^mrivas_c4.+like$', names(image_ratings))])
+image_ratings$like_c5 <- rowMeans(image_ratings[grep('^mrivas_c5.+like$', names(image_ratings))])
+
+image_ratings$like_d1 <- rowMeans(image_ratings[grep('^mrivas_d1.+like$', names(image_ratings))])
+image_ratings$like_d2 <- rowMeans(image_ratings[grep('^mrivas_d2.+like$', names(image_ratings))])
+image_ratings$like_d3 <- rowMeans(image_ratings[grep('^mrivas_d3.+like$', names(image_ratings))])
+image_ratings$like_d4 <- rowMeans(image_ratings[grep('^mrivas_d4.+like$', names(image_ratings))])
+image_ratings$like_d5 <- rowMeans(image_ratings[grep('^mrivas_d5.+like$', names(image_ratings))])
+
+image_ratings$like_e1 <- rowMeans(image_ratings[grep('^mrivas_e1.+like$', names(image_ratings))])
+image_ratings$like_e2 <- rowMeans(image_ratings[grep('^mrivas_e2.+like$', names(image_ratings))])
+image_ratings$like_e3 <- rowMeans(image_ratings[grep('^mrivas_e3.+like$', names(image_ratings))])
+image_ratings$like_e4 <- rowMeans(image_ratings[grep('^mrivas_e4.+like$', names(image_ratings))])
+image_ratings$like_e5 <- rowMeans(image_ratings[grep('^mrivas_e5.+like$', names(image_ratings))])
+
+image_ratings$like_f1 <- rowMeans(image_ratings[grep('^mrivas_f1.+like$', names(image_ratings))])
+image_ratings$like_f2 <- rowMeans(image_ratings[grep('^mrivas_f2.+like$', names(image_ratings))])
+image_ratings$like_f3 <- rowMeans(image_ratings[grep('^mrivas_f3.+like$', names(image_ratings))])
+image_ratings$like_f4 <- rowMeans(image_ratings[grep('^mrivas_f4.+like$', names(image_ratings))])
+image_ratings$like_f5 <- rowMeans(image_ratings[grep('^mrivas_f5.+like$', names(image_ratings))])
+
+# across conditions
+image_ratings$like_HighED <- rowMeans(image_ratings[grep('^mrivas_a.+like$|mrivas_b.+like$', names(image_ratings))])
+image_ratings$like_LowED <- rowMeans(image_ratings[grep('^mrivas_c.+like$|mrivas_d.+like$', names(image_ratings))])
+image_ratings$like_LargePS <- rowMeans(image_ratings[grep('^mrivas_a.+like$|mrivas_c.+like$', names(image_ratings))])
+image_ratings$like_SmallPS <- rowMeans(image_ratings[grep('^mrivas_b.+like$|mrivas_d.+like$', names(image_ratings))])
+image_ratings$like_Office <- rowMeans(image_ratings[grep('^mrivas_e.+like$|mrivas_f.+like$', names(image_ratings))])
+image_ratings$like_food <- rowMeans(image_ratings[grep('^mrivas_a.+like$|mrivas_b.+like$|^mrivas_c.+like$|mrivas_d.+like$', names(image_ratings))])
+
+#### compute average fullness ratings  ####
+# for each food condition overall
+image_ratings$full_HighLarge <- rowMeans(image_ratings[grep('^mrivas_a.+full$', names(image_ratings))])
+image_ratings$full_HighSmall <- rowMeans(image_ratings[grep('^mrivas_b.+full$', names(image_ratings))])
+image_ratings$full_LowLarge <- rowMeans(image_ratings[grep('^mrivas_c.+full$', names(image_ratings))])
+image_ratings$full_LowSmall <- rowMeans(image_ratings[grep('^mrivas_d.+full$', names(image_ratings))])
+
+# for each food condition by block procedure
+image_ratings$full_a1 <- rowMeans(image_ratings[grep('^mrivas_a1.+full$', names(image_ratings))])
+image_ratings$full_a2 <- rowMeans(image_ratings[grep('^mrivas_a2.+full$', names(image_ratings))])
+image_ratings$full_a3 <- rowMeans(image_ratings[grep('^mrivas_a3.+full$', names(image_ratings))])
+image_ratings$full_a4 <- rowMeans(image_ratings[grep('^mrivas_a4.+full$', names(image_ratings))])
+image_ratings$full_a5 <- rowMeans(image_ratings[grep('^mrivas_a5.+full$', names(image_ratings))])
+
+image_ratings$full_b1 <- rowMeans(image_ratings[grep('^mrivas_b1.+full$', names(image_ratings))])
+image_ratings$full_b2 <- rowMeans(image_ratings[grep('^mrivas_b2.+full$', names(image_ratings))])
+image_ratings$full_b3 <- rowMeans(image_ratings[grep('^mrivas_b3.+full$', names(image_ratings))])
+image_ratings$full_b4 <- rowMeans(image_ratings[grep('^mrivas_b4.+full$', names(image_ratings))])
+image_ratings$full_b5 <- rowMeans(image_ratings[grep('^mrivas_b5.+full$', names(image_ratings))])
+
+image_ratings$full_c1 <- rowMeans(image_ratings[grep('^mrivas_c1.+full$', names(image_ratings))])
+image_ratings$full_c2 <- rowMeans(image_ratings[grep('^mrivas_c2.+full$', names(image_ratings))])
+image_ratings$full_c3 <- rowMeans(image_ratings[grep('^mrivas_c3.+full$', names(image_ratings))])
+image_ratings$full_c4 <- rowMeans(image_ratings[grep('^mrivas_c4.+full$', names(image_ratings))])
+image_ratings$full_c5 <- rowMeans(image_ratings[grep('^mrivas_c5.+full$', names(image_ratings))])
+
+image_ratings$full_d1 <- rowMeans(image_ratings[grep('^mrivas_d1.+full$', names(image_ratings))])
+image_ratings$full_d2 <- rowMeans(image_ratings[grep('^mrivas_d2.+full$', names(image_ratings))])
+image_ratings$full_d3 <- rowMeans(image_ratings[grep('^mrivas_d3.+full$', names(image_ratings))])
+image_ratings$full_d4 <- rowMeans(image_ratings[grep('^mrivas_d4.+full$', names(image_ratings))])
+image_ratings$full_d5 <- rowMeans(image_ratings[grep('^mrivas_d5.+full$', names(image_ratings))])
+
+# across conditions
+image_ratings$full_LargePS <- rowMeans(image_ratings[grep('^mrivas_a.+full$|mrivas_c.+full$', names(image_ratings))])
+image_ratings$full_SmallPS <- rowMeans(image_ratings[grep('^mrivas_b.+full$|mrivas_d.+full$', names(image_ratings))])
+image_ratings$full_HighED <- rowMeans(image_ratings[grep('^mrivas_a.+full$|mrivas_b.+full$', names(image_ratings))])
+image_ratings$full_LowED <- rowMeans(image_ratings[grep('^mrivas_c.+full$|mrivas_d.+full$', names(image_ratings))])
+
+#subset liking and fullness data
+avg_ratings_all <- image_ratings[,grep("id|^like|^full", colnames(image_ratings))]
+
+```
+
+```{r subset to children included for non-parametric fmri analyses}
+avg_ratings <- setDT(avg_ratings_all)[id %chin% index$id]
+```
+
+```{r long liking and fullness datasets by condition}
+# # wide to long -- liking ratings 
+# like_long <- reshape2::melt(avg_ratings,
+#         # ID variables - all the variables to keep but not split apart on
+#     id.vars=c("id"),
+#         # The source columns
+#     measure.vars=c("like_HighLarge","like_HighSmall", "like_LowLarge", "like_LowSmall", "like_OfficeLarge", "like_OfficeSmall"),
+#         # Name of the destination column that will identify the original
+#         # column that the measurement came from
+#     variable.name="condition",
+#     value.name="avg_liking"
+# )
+# 
+# # wide to long -- fullness ratings
+# full_long <- reshape2::melt(avg_ratings,
+#         # ID variables - all the variables to keep but not split apart on
+#     id.vars=c("id"),
+#         # The source columns
+#     measure.vars=c("full_HighLarge","full_LowLarge", "full_HighSmall", "full_LowSmall"),
+#         # Name of the destination column that will identify the original
+#         # column that the measurement came from
+#     variable.name="condition",
+#     value.name="avg_fullness"
+# )
+# 
+# # Make portion size and energy density columns
+# like_long$portion_size <- ifelse(grepl("Large", like_long$cond), "Large", "Small")
+# like_long$type <- ifelse(grepl("High", like_long$condition), "HighED", ifelse(grepl("Low", like_long$condition), "LowED", "Office"))
+# full_long$portion_size <- ifelse(grepl("Large", full_long$condition), "Large", "Small")
+# full_long$type <- ifelse(grepl("High", full_long$condition), "High", "Low")
+# 
+# # create food-only dataframe by removing office conditions
+# like_long_food<-like_long[!(like_long$type=="Office"),]
+
+```
+
+```{r long liking and fullness datasets by block}
+
+# get list of columns that start with "like_" and have 2 characters after 
+byblock_like_columns <- grep("^like_[[:alnum:]]{2}$", names(avg_ratings), value = TRUE)
+
+# get list of columns that start with "like_" and have 2 characters after 
+byblock_fullness_columns <- grep("^full_[[:alnum:]]{2}$", names(avg_ratings), value = TRUE)
+
+# wide to long -- liking ratings 
+byblock_like_long <- reshape2::melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=byblock_like_columns,
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_liking"
+)
+
+# wide to long -- fullness ratings
+byblock_full_long <- reshape2::melt(avg_ratings,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("id"),
+        # The source columns
+    measure.vars=byblock_fullness_columns,
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    variable.name="condition",
+    value.name="avg_fullness"
+)
+
+# Make portion size and category columns
+byblock_like_long$ED <- ifelse(grepl("like_a", byblock_like_long$condition), "HighED", 
+                                ifelse(grepl("like_b", byblock_like_long$condition), "HighED", 
+                                    ifelse(grepl("like_c", byblock_like_long$condition), "LowED", 
+                                        ifelse(grepl("like_d", byblock_like_long$condition), "LowED", "Office"))))
+
+byblock_like_long$category <- ifelse(grepl("like_a", byblock_like_long$condition), "food", 
+                                ifelse(grepl("like_b", byblock_like_long$condition), "food", 
+                                    ifelse(grepl("like_c", byblock_like_long$condition), "food", 
+                                        ifelse(grepl("like_d", byblock_like_long$condition), "food", "Office"))))
+
+byblock_like_long$portion <- ifelse(grepl("like_a", byblock_like_long$condition), "Large", 
+                                ifelse(grepl("like_c", byblock_like_long$condition), "Large", 
+                                    ifelse(grepl("like_e", byblock_like_long$condition), "Large", "Small"))) 
+
+byblock_full_long$category <- ifelse(grepl("full_a", byblock_full_long$condition), "HighED", 
+                                ifelse(grepl("full_b", byblock_full_long$condition), "HighED", 
+                                    ifelse(grepl("full_c", byblock_full_long$condition), "LowED", 
+                                        ifelse(grepl("full_d", byblock_full_long$condition), "LowED", "Office"))))
+
+byblock_full_long$portion <- ifelse(grepl("full_a", byblock_full_long$condition), "Large", 
+                                ifelse(grepl("full_c", byblock_full_long$condition), "Large", 
+                                    ifelse(grepl("full_e", byblock_full_long$condition), "Large", "Small"))) 
+
+```
+
+# Behavioral analyses
+
+The following code analyses liking and fullness by cue type/ED and amount and generates corresponding plots.
+Ratings are assessed for all subjects included in non-parametric analyses (n=61).
+
+``` {r liking analyses}
+
+# create food-only dataframe by removing office conditions
+byblock_like_long_food<-byblock_like_long[!(byblock_like_long$ED=="Office"),]
+
+# remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
+byblock_like_clean<-byblock_like_long[!is.na(byblock_like_long$avg_liking),]
+byblock_like_food_clean <- byblock_like_long_food[!is.na(byblock_like_long_food$avg_liking),]
+
+
+#### ANALYSES ####
+
+# portion size (large, small) x cue type (food, office)
+liking_mixed_cuetype = lmer(avg_liking ~ portion*category + (1 | id), data = byblock_like_clean)
+anova(liking_mixed_cuetype)
+
+# portion size (large, small) x food-cue type (high, low)
+liking_mixed_ED = lmer(avg_liking ~ portion*ED + (1 | id), data = byblock_like_food_clean)
+anova(liking_mixed_ED)
+
+# get means and ses
+emmeans(liking_mixed_cuetype, specs = pairwise ~category|portion, type = "response")
+emmeans(liking_mixed_ED, specs = pairwise ~category|portion, type = "response")
+
+```
+
+fullness analyses
+``` {r fullness analyses}
+# remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
+byblock_full_clean<-byblock_full_long[!is.na(byblock_full_long$avg_fullness),]
+
+# portion size (large, small) x food-cue type (high, low)
+fullness_mixed_ED = lmer(avg_fullness ~ portion*category + (1 | id), data = byblock_full_clean)
+anova(fullness_mixed_ED)
+
+emmeans(fullness_mixed_ED, specs = pairwise ~category|portion, type = "response")
+
+
+```
+
+
+#### Nothing below here has been edited for liking/fullness -- copied from p_want analyses ####
+Figure 1:
+``` {r p_want plots}
+
+# get adjusted response after adjusting for covariates in model 
+beh_clean$predict_p_want_mixed_cuetype <- predict(p_want_mixed_cuetype, type="response")
+beh_food_clean$predict_p_want_mixed_ED <- predict(p_want_mixed_ED, type="response")
+
+#### VIOLIN PLOTS with ggplot####
+
+# Amount (large, small) x cue (food, office)
+plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype, fill = portion_size)) +
+  theme_bw() +
+  geom_violin(trim=FALSE)+
+  geom_signif(comparisons = list(c("food","office")), y_position = 1.3,
+              map_signif_level = TRUE)+
+  geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(values = c("lightgrey", "grey35")) +
+  labs(x="Cue Type",
+       y = "Adjusted %want") +
+  theme(legend.title = element_blank()) +
+  theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
+  ylim(0, 1.5) + 
+  scale_x_discrete(labels = c("food" = "Food",
+                              "office" = "Office Supplies"))
+
+plot_cuetype
+
+# # Food amount (large, small) x ED (high, low)
+plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_ED, fill = portion_size)) +
+  theme_bw() +
+  geom_violin(trim=FALSE)+
+  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 1.3,
+              map_signif_level = TRUE) +
+  geom_boxplot(aes(group = interaction(energy_density, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  scale_fill_manual(values = c("lightgrey", "grey35")) +
+  labs(x="Energy Density",
+       y = "Adjusted %want") +
+  theme(legend.title = element_blank()) +
+  theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
+  ylim(0, 1.5) +
+  scale_x_discrete(labels = c("HighED" = "Higher",
+                              "LowED" = "Lower"))
+
+plot_ED
+
+
+```
+
+# Prepare for parametric analyses
+
+The follow chunk is used to determine what subjects to exclude from parametric analyses
+
+Subjects will be excluded if:
+(1) they are missing p_want_of_resp for any block
+(2) they do not have enough variability in p_want_of_resp to be included in analyses (must have >1 unique value)
+
+```{r identify subs to exclude}
+
+#### Identify subs with missing behavior for any block ####
+
+# make list subjects with missing behavior for any block
+pm_missing_pwant <- unique(beh[is.na(beh$p_want_of_resp),"id"])
+pm_missing_pwant # 11, 39, 28, 20
+
+# count number of subjects with missing data
+nrow(pm_missing_pwant) # N = 4
+
+#### clean data base ####
+
+# remove subjects with missing data
+pm_beh_temp <- beh[ ! beh$id %in% pm_missing_pwant$id, ]
+
+# remove runs excluded for motion
+censor_sum_subset <- censor_sum[,c("id", "run", "p_censor_interest")]
+pm_beh_clean <- merge(x=pm_beh_temp,y=censor_sum_subset, 
+             by=c("id","run"))
+pm_beh_clean <-pm_beh_clean[!(pm_beh_clean$p_censor_interest>20),]
+ 
+#### Identify subs with  no variability ####
+
+# count number of distinct p_want values by id and ED condition (high, low)
+distinct_ED <- pm_beh_clean %>% filter(cue_type != "office") %>%
+  group_by(id, energy_density) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
+
+# count number of distinct p_want values by id and food PS condition (large, small)
+distinct_PS_food <- pm_beh_clean %>% filter(cue_type != "office") %>%
+  group_by(id, portion_size) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
+
+# count number of distinct p_want values by id for office condition (across large and small)
+distinct_office<- pm_beh_clean %>% filter(cue_type != "food") %>%
+  group_by(id) %>% dplyr::summarize(distinct = n_distinct(p_want_of_resp))
+
+# summarize # of distinct responses by energy_density and portion_size, and for office supplies
+describeBy(distinct_ED$distinct, group = distinct_ED$energy_density)
+describeBy(distinct_PS_food$distinct, group = distinct_PS_food$portion_size)
+describe(distinct_office$distinct)
+
+# Identify subs with  no variability (distinct==1) in at least 1 condition when assessing by ED
+novar_ED <- distinct_ED[(distinct_ED$distinct==1),] %>%
+  dplyr::summarize(distinct = n_distinct(id))
+novar_ED$id # id 4, 40, 58
+nrow(novar_ED) # N = 3
+
+# Identify subs with no variability (distinct==1) in at least 1 condition when assessing by PS
+novar_PS_food <- distinct_PS_food[(distinct_PS_food$distinct==1),] %>%
+  dplyr::summarize(distinct = n_distinct(id))
+novar_PS_food$id # id 4, 40
+nrow(novar_PS_food) # N = 2
+
+# Identify subs with no variability (distinct==1) in at least 1 condition when assessing by PS
+novar_office <- distinct_office[(distinct_office$distinct==1),]
+novar_office$id # id 4  17  26  49  56  84  89 116
+nrow(novar_office) # N = 8
+
+```
+
+```{r average wanting by analyzed condition}
+#### generate beh databases with analyzed sample ####
+
+# remove subjects with no variability in p_want for the given analyses
+
+# remove 4 and 40 -- not included in analyses by PS
+pm_beh_food_analyzed_PS<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==40),]
+
+# remove 4 40 amd 58 -- not included in analyses by ED
+pm_beh_food_analyzed_ED<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==40 | pm_beh_clean$id==58),]
+
+# remove  4  17  26  49  56  84  89 116 -- not included in analyses for office
+pm_beh_analyzed_office<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==17 | pm_beh_clean$id==26 | pm_beh_clean$id==49 | pm_beh_clean$id==56 | pm_beh_clean$id==84 | pm_beh_clean$id==89 | pm_beh_clean$id==116),]
+
+#### count subs included in parametric analyses analyses ####
+n_distinct(pm_beh_food_analyzed_PS$id)
+n_distinct(pm_beh_food_analyzed_ED$id)
+n_distinct(pm_beh_analyzed_office$id)
+
+#### assess range in p_want responses by id, condition ####
+
+# get min and max of distinct p_want values by id, ED condition
+range_ED <- pm_beh_food_analyzed_ED %>%
+  filter(cue_type == "food") %>% # remove office rows 
+  group_by(id, energy_density) %>% 
+  dplyr::summarize(min_pwant = min(p_want_of_resp), 
+            max_pwant = max(p_want_of_resp),
+            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
+
+# get min and max of distinct p_want values by id, PS condition
+range_PS <- pm_beh_food_analyzed_PS %>%
+  filter(cue_type == "food") %>% 
+  group_by(id, portion_size) %>% 
+  dplyr::summarize(min_pwant = min(p_want_of_resp), 
+            max_pwant = max(p_want_of_resp),
+            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
+
+# get min and max of distinct p_want values by id, office supplys
+range_office <- pm_beh_analyzed_office %>%
+  filter(cue_type == "office") %>% 
+  group_by(id) %>% 
+  dplyr::summarize(min_pwant = min(p_want_of_resp), 
+            max_pwant = max(p_want_of_resp),
+            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
+  
+# summarize range
+describeBy(range_ED$range_pwant, group = range_ED$energy_density)
+describeBy(range_PS$range_pwant, group = range_PS$portion_size)
+describe(range_office$range_pwant)
+
+
+hist(range_ED$range_pwant)
+hist(range_PS$range_pwant)
+hist(range_office$range_pwant)
+
+```
+
