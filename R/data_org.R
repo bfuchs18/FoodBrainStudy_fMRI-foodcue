@@ -20,6 +20,9 @@ anthro_data <- read_sav("data/raw/anthro_data.sav")
 # visit 6 database
 V6 <- read_sav("data/raw/visit6_data.sav")
 
+# visit notes
+visit_notes <- read_sav("data/raw/visit_notes.sav")
+
 # scan status redcap form
 scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar.csv")
 
@@ -31,6 +34,7 @@ index_wide <- read.table("BIDS/derivatives/analyses/foodcue-paper1/level2/index_
 
 # censor summary
 censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
+
 
 ############ Prep Data ###########
 
@@ -49,6 +53,8 @@ anthro_data_reduced <- anthro_data[,c("id","sex","age_yr", "race", "ethnicity" ,
                         "partner_ed", "partner_ed_other", "parent_bmi", "sr_mom_bmi")]
 
 V6_reduced <- V6[,c("id", "ff_premri_snack", "ff_postmri_snack", "ff_postmri_snack2", "cams_pre_mri")]
+
+V6_notes <- visit_notes[,c("id", "v6_childnotes")]
 
 image_ratings <- V6[,grep("id|^mrivas|mri_version", colnames(V6))]
 
