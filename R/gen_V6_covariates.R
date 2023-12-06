@@ -104,7 +104,11 @@ ff_concat <- merge(x = ff_concat, y = ff_complete_min, by = "id", all.x = TRUE)
 CAMS_data <- compiled[,c('id','cams_pre_mri')]
 V6_covar <- merge(x = ff_concat, y = CAMS_data, by = "id", all.x = TRUE)
 
+#### Add snack intake ####
+V6_covar$snack_intake <- compiled$pre_mri_snack[match(V6_covar$id, compiled$id)]
+
 #### Export database for use in imaging analyses ####
-write.csv(V6_covar, 'data/derivatives_R/V6_covariates.csv', row.names = FALSE)
+#write.csv(V6_covar, 'data/derivatives_R/V6_covariates.csv', row.names = FALSE)
+write.csv(V6_covar, 'BIDS/derivatives/analyses/foodcue-paper1/R/V6_covariates.csv', row.names = FALSE)
 
 
