@@ -109,6 +109,6 @@ V6_covar$snack_intake <- compiled$pre_mri_snack[match(V6_covar$id, compiled$id)]
 
 #### Export database for use in imaging analyses ####
 #write.csv(V6_covar, 'data/derivatives_R/V6_covariates.csv', row.names = FALSE)
-write.csv(V6_covar, 'BIDS/derivatives/analyses/foodcue-paper1/R/V6_covariates.csv', row.names = FALSE)
+write.csv(V6_covar, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/V6_covariates.csv', row.names = FALSE)
 
 
