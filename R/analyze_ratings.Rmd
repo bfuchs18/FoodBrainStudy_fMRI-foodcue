@@ -269,8 +269,8 @@ byblock_full_long <- byblock_full_long %>%
 Export for use in parametric analyses
 ``` {r export}
 
-write.csv(byblock_like_long, 'BIDS/derivatives/analyses/foodcue-paper1/R/liking_ratings_byblock.csv', row.names = FALSE)
-write.csv(byblock_full_long, 'BIDS/derivatives/analyses/foodcue-paper1/R/fullness_ratings_byblock.csv', row.names = FALSE)
+write.csv(byblock_like_long, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/liking_ratings_byblock.csv', row.names = FALSE)
+write.csv(byblock_full_long, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/fullness_ratings_byblock.csv', row.names = FALSE)
 
 ```
 
@@ -382,7 +382,7 @@ Ratings are assessed for all subjects included in non-parametric analyses (n=61)
 ``` {r liking analyses}
 
 # create food-only dataframe by removing office conditions
-byblock_like_long_food<-byblock_like_long[!(byblock_like_long$ED=="Office"),]
+byblock_like_long_food<-byblock_like_long[!(byblock_like_long$cuetype=="office"),]
 
 # remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
 byblock_like_clean<-byblock_like_long[!is.na(byblock_like_long$avg_liking),]
@@ -393,12 +393,12 @@ byblock_like_food_clean <- byblock_like_long_food[!is.na(byblock_like_long_food$
 
 # should run be numeric or categorical?
 
-# portion size (large, small) x cue type (food, office)
+# liking ~ portion*cue type (food, office)
 liking_mixed_cuetype = lmer(avg_liking ~ portion*category + as.numeric(run) + (1 | id), data = byblock_like_clean)
 anova(liking_mixed_cuetype)
 
-# portion size (large, small) x food-cue type (high, low)
-liking_mixed_ED = lmer(avg_liking ~ portion*ED + as.numeric(run) + (1 | id), data = byblock_like_food_clean)
+# liking ~ portion*ED
+liking_mixed_ED = lmer(avg_liking ~ portion*category + as.numeric(run) + (1 | id), data = byblock_like_food_clean)
 anova(liking_mixed_ED)
 
 # get means and ses
@@ -412,7 +412,7 @@ fullness analyses
 # remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
 byblock_full_clean<-byblock_full_long[!is.na(byblock_full_long$avg_fullness),]
 
-# portion size (large, small) x food-cue type (high, low)
+# fullness ~ portion size (large, small) x ED (high, low)
 fullness_mixed_ED = lmer(avg_fullness ~ portion*category + as.numeric(run) + (1 | id), data = byblock_full_clean)
 anova(fullness_mixed_ED)
 
@@ -429,14 +429,23 @@ byblock_like_clean$predict_liking_mixed_cuetype <- predict(liking_mixed_cuetype,
 byblock_like_food_clean$predict_liking_mixed_ED <- predict(liking_mixed_ED, type="response")
 byblock_full_clean$predict_fullness_mixed_ED <- predict(fullness_mixed_ED, type="response")
 
+
+quartiles_by_group <- byblock_like_clean %>%
+  group_by(cuetype, portion) %>%
+  summarize(
+    Q1 = quantile(predict_liking_mixed_cuetype, 0.25),
+    Q3 = quantile(predict_liking_mixed_cuetype, 0.75)
+  )
+print(quartiles_by_group)
+
 #### VIOLIN PLOTS with ggplot####
 
 # liking ~ amount x cue type
-plot_liking_cuetype <- ggplot(byblock_like_clean, aes(x=category, y=predict_liking_mixed_cuetype, fill = portion)) +
+plot_liking_cuetype <- ggplot(byblock_like_clean, aes(x=cuetype, y=predict_liking_mixed_cuetype, fill = portion)) +
   theme_bw() +
   geom_violin(trim=FALSE) +
   geom_signif(comparisons = list(c("food","Office")), y_position = 110, map_signif_level = TRUE) +
-  geom_boxplot(aes(group = interaction(category, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  geom_boxplot(aes(group = interaction(cuetype, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Cue Type",
        y = "Adjusted liking") +
@@ -448,13 +457,13 @@ plot_liking_cuetype <- ggplot(byblock_like_clean, aes(x=category, y=predict_liki
 
 plot_liking_cuetype
 
-# liking ~ amount x ED
-plot_liking_ED <- ggplot(byblock_like_food_clean, aes(x=ED, y=predict_liking_mixed_ED, fill = portion)) +
+# liking ~ amount x ED (category)
+plot_liking_ED <- ggplot(byblock_like_food_clean, aes(x=category, y=predict_liking_mixed_ED, fill = portion)) +
   theme_bw() +
   geom_violin(trim=FALSE)+
   geom_signif(comparisons = list(c("HighED","LowED")), y_position = 110,
               map_signif_level = TRUE) +
-  geom_boxplot(aes(group = interaction(ED, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
+  geom_boxplot(aes(group = interaction(category, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Energy Density",
        y = "Adjusted liking") +
