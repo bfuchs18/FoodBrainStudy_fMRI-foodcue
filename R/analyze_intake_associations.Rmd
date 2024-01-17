@@ -1,0 +1,262 @@
+---
+title: "Associations with intake"
+author: "baf44"
+date: "1/23/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Code to 
+
+This code uses the following derivative files:
+
+# Setup
+
+```{r imports, include=FALSE}
+library(lme4)
+library(lmerTest) # need this to get p-values with anova()
+library(maditr)
+library(ggplot2)
+library(rstatix)
+library(dplyr)
+library(performance) # used for check_model()
+library(influence.ME) # used for influence()
+
+# Source data_org.R to load and process intake data into long form
+source("R/data_org.R")
+
+# update id column in intake_long
+intake_long$id <- sprintf("%03d", intake_long$id)
+
+# import beta values extracted from 1 sample Ttests
+betas_1samp_food_office <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_Food-Office.txt", header=FALSE)
+
+betas_1samp_EDcon <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_High-Low_allPS.txt", header=FALSE)
+
+betas_1samp_PScon <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_Large-Small_allED.txt", header=FALSE)
+  
+# import beta values extract from paired T test result (food vs. office, PS contrast)
+betas_Office_PScon_unclean <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/2sample-pairedT/ped_fd-0.9_b20_3runs_noGSR_03-24-23/betas_clust_mask_pairedT_cuetype_OfficeLarge-Small.txt", header=FALSE)
+
+betas_Food_PScon_unclean <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/2sample-pairedT/ped_fd-0.9_b20_3runs_noGSR_03-24-23/betas_clust_mask_pairedT_cuetype_Large-Small_allED.txt", header=FALSE)
+
+```
+
+#### 1 sample T test clusters ####
+```{r clean 1 sample T datasets, include=FALSE}
+
+list_of_orig_dataframes <- list(betas_1samp_food_office, betas_1samp_EDcon, betas_1samp_PScon)
+list_of_clean_dataframes <- list()
+
+for (i in seq_along(list_of_orig_dataframes)) {
+  df <- list_of_orig_dataframes[[i]]
+  
+  # remove rows where V1 = "File"
+  df <- subset(df, V1 != "File") # remove rows where V1 = "File"
+  
+  # make columns 3 through end numeric
+  ncol <- ncol(df)
+
+  if (ncol > 3) {
+    df[, 3:ncol] <- apply(df[, 3:ncol], 2, as.numeric)
+  } else {
+    df[, 3] <- as.numeric(df[, 3])
+  }
+
+  # replace V1 with sub ID column
+  df$V1 <- substr(df$V1, 103, 105)
+  
+  df <- df %>% 
+       rename("id" = "V1")
+  
+  # merge with intake data
+  df <- merge(intake_long, df, by = "id")
+  
+  # Update the dataframe in the list
+  list_of_clean_dataframes[[i]] <- df
+}
+
+
+```
+
+```{r Food-Office Cluster associations with intake, include=FALSE}
+
+# grams
+lmer_grams_cuetype_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + I(ps_prop*ps_prop)*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V3)
+
+lmer_grams_cuetype_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + I(ps_prop*ps_prop)*V4 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V4)
+
+lmer_grams_cuetype_V5 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V5 + I(ps_prop*ps_prop)*V5 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V5)
+
+lmer_grams_cuetype_V6 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V6 + I(ps_prop*ps_prop)*V6 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V6)
+
+lmer_grams_cuetype_V7 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V7 + I(ps_prop*ps_prop)*V7 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V7)
+
+lmer_grams_cuetype_V8 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V8 + I(ps_prop*ps_prop)*V8 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V8)
+
+lmer_grams_cuetype_V9 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V9 + I(ps_prop*ps_prop)*V9 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V9)
+
+lmer_grams_cuetype_V10 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V10 + I(ps_prop*ps_prop)*V10 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V8)
+
+lmer_grams_cuetype_V11 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V11 + I(ps_prop*ps_prop)*V11 + (1 | id), data = list_of_clean_dataframes[[1]])
+anova(lmer_grams_cuetype_V9)
+
+
+```
+
+```{r ED Cluster associations with intake, include=FALSE}
+
+# # grams
+lmer_grams_ED_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
+anova(lmer_grams_ED_V3)
+
+
+```
+
+```{r PS Cluster associations with intake, include=FALSE}
+
+# grams - no quads
+lmer_grams_PS_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
+anova(lmer_grams_PS_V3)
+
+lmer_grams_PS_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
+anova(lmer_grams_PS_V4)
+
+# kcal
+lmer_kcal_PS_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
+anova(lmer_kcal_PS_V3)
+
+```
+
+
+```{r plot lmer_grams_PS_V3, include=FALSE}
+
+library(interactions)
+
+hist(list_of_clean_dataframes[[3]]$V3)
+t.test(list_of_clean_dataframes[[3]]$V3, mu = 0, alternative = "two.sided")
+
+# grams
+interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3) + scale_x_continuous(breaks = seq(0, .99, by = .33))
+
+# kcal
+interact_plot(lmer_kcal_PS_V3, pred = ps_prop, modx = V3) + scale_x_continuous(breaks = seq(0, .99, by = .33))
+
+# with 95% CIs
+interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, interval = TRUE, int.width = 0.95) + scale_x_continuous(breaks = seq(0, .99, by = .33))
+
+# with points
+interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE) + scale_x_continuous(breaks = seq(0, .99, by = .33))
+
+
+```
+
+#### Paired T test clusters ####
+```{r clean 2 sample T datasets, include=FALSE}
+
+# remove rows where V1 = "File"
+betas_Office_PScon <- subset(betas_Office_PScon_unclean, V1 != "File")
+betas_Food_PScon <- subset(betas_Food_PScon_unclean, V1 != "File")
+
+# make values numeric
+betas_Office_PScon$V3 <- as.numeric(betas_Office_PScon$V3)
+betas_Food_PScon$V3 <- as.numeric(betas_Food_PScon$V3)
+
+betas_Office_PScon$V4 <- as.numeric(betas_Office_PScon$V4)
+betas_Food_PScon$V4 <- as.numeric(betas_Food_PScon$V4)
+
+# rename columns
+colnames(betas_Office_PScon)[colnames(betas_Office_PScon) == "V3"] <- "betas_clust1"
+colnames(betas_Food_PScon)[colnames(betas_Food_PScon) == "V3"] <- "betas_clust1"
+colnames(betas_Office_PScon)[colnames(betas_Office_PScon) == "V4"] <- "betas_clust2"
+colnames(betas_Food_PScon)[colnames(betas_Food_PScon) == "V4"] <- "betas_clust2"
+
+# add subject ID column
+betas_Office_PScon$id <- substr(betas_Office_PScon$V1, 103, 105)
+betas_Food_PScon$id <- substr(betas_Food_PScon$V1, 103, 105)
+
+# add cue type column -- identifies what blocks were included in the large-small contrast
+betas_Office_PScon$cuetype <- "office"
+betas_Food_PScon$cuetype <- "food"
+
+# stack beta dataframes
+stacked_df <- rbind(betas_Office_PScon, betas_Food_PScon)
+
+# merge betas with intake data
+intake_long$id <- sprintf("%03d", intake_long$id)
+
+merged_df <- merge(intake_long, betas_Office_PScon[, c("id", "betas_clust1")], by = "id")
+merged_df <- transform(merged_df, office_PScon_clust1 = betas_clust1) # create copy of betas_clust1 with name office_PScon_clust1
+merged_df <- merged_df[, !(names(merged_df) %in% c("betas_clust1"))] # Drop the 'betas_clust1' column
+
+merged_df <- merge(merged_df, betas_Office_PScon[, c("id", "betas_clust2")], by = "id")
+merged_df <- transform(merged_df, office_PScon_clust2 = betas_clust2) # create copy of betas_clust2 with name office_PScon_clust2
+merged_df <- merged_df[, !(names(merged_df) %in% c("betas_clust2"))] # Drop the 'betas_clust2' column 
+
+
+merged_df <- merge(merged_df, betas_Food_PScon[, c("id", "betas_clust1")], by = "id")
+merged_df <- transform(merged_df, food_PScon_clust1 = betas_clust1) # create copy of betas_clust1 with name food_PScon_clust1
+merged_df <- merged_df[, !(names(merged_df) %in% c("betas_clust1"))] # Drop the 'betas_clust1' column
+
+merged_df <- merge(merged_df, betas_Food_PScon[, c("id", "betas_clust2")], by = "id")
+merged_df <- transform(merged_df, food_PScon_clust2 = betas_clust2) # create copy of betas_clust2 with name food_PScon_clust2
+merged_df <- merged_df[, !(names(merged_df) %in% c("betas_clust2"))] # Drop the 'betas_clust2' column 
+
+```
+
+```{r plot paired T, include=FALSE}
+# Confirm what was observed in AFNI
+
+#boxplot(betas_clust1 ~ cuetype, data = stacked_df)
+#boxplot(betas_clust2 ~ cuetype, data = stacked_df)
+
+library(ggplot2)
+
+ggplot(stacked_df, aes(x = cuetype, y = betas_clust1)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "blue") +  # Add jittered points
+  labs(title = "Clust 2", x = "cuetype", y = "extracted contrast value (large - small)")
+
+ggplot(stacked_df, aes(x = cuetype, y = betas_clust2)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "blue") +  # Add jittered points
+  labs(title = "Clust 2", x = "cuetype", y = "extracted contrast value (large - small)")
+
+```
+
+```{r associationis with intake, include=FALSE}
+# grams
+lmer_grams_office_clust1 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*office_PScon_clust1 + (1 | id), data = merged_df)
+anova(lmer_grams_office_clust1)
+
+lmer_grams_office_clust2 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*office_PScon_clust2 + (1 | id), data = merged_df)
+anova(lmer_grams_office_clust2)
+
+lmer_grams_food_clust1 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*food_PScon_clust1 + (1 | id), data = merged_df)
+anova(lmer_grams_food_clust1)
+
+lmer_grams_food_clust2 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*food_PScon_clust2 + (1 | id), data = merged_df)
+anova(lmer_grams_food_clust2)
+
+# kcal
+lmer_kcal_office_clust1 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*office_PScon_clust1 + (1 | id), data = merged_df)
+anova(lmer_kcal_office_clust1)
+
+lmer_kcal_office_clust2 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*office_PScon_clust2 + (1 | id), data = merged_df)
+anova(lmer_kcal_office_clust2)
+
+lmer_kcal_food_clust1 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*food_PScon_clust1 + (1 | id), data = merged_df)
+anova(lmer_kcal_food_clust1)
+
+lmer_kcal_food_clust2 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*food_PScon_clust2 + (1 | id), data = merged_df)
+anova(lmer_kcal_food_clust2)
+```
