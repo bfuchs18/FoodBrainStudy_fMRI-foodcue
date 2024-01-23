@@ -14,12 +14,10 @@ Code to ...
 ```{r imports, include=FALSE}
 library(lme4)
 library(lmerTest) # need this to get p-values with anova()
-library(maditr)
 library(ggplot2)
-library(rstatix)
 library(dplyr)
-library(performance) # used for check_model()
-library(influence.ME) # used for influence()
+#library(performance) # used for check_model()
+#library(influence.ME) # used for influence()
 
 # Source data_org.R to load and process intake data into long form
 source("R/data_org.R")
@@ -79,58 +77,50 @@ for (i in seq_along(list_of_orig_dataframes)) {
 ```{r 1 sample T food-office cluster associations with intake, include=FALSE}
 
 # grams
-lmer_grams_cuetype_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + I(ps_prop*ps_prop)*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V3)
+lmer_grams_cuetype_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + I(ps_prop*ps_prop)*V4 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V4)
+lmer_grams_cuetype_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V5 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V5 + I(ps_prop*ps_prop)*V5 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V5)
+lmer_grams_cuetype_V5 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V5 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V6 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V6 + I(ps_prop*ps_prop)*V6 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V6)
+lmer_grams_cuetype_V6 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V6 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V7 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V7 + I(ps_prop*ps_prop)*V7 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V7)
+lmer_grams_cuetype_V7 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V7 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V8 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V8 + I(ps_prop*ps_prop)*V8 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V8)
+lmer_grams_cuetype_V8 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V8 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V9 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V9 + I(ps_prop*ps_prop)*V9 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V9)
+lmer_grams_cuetype_V9 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V9 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V10 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V10 + I(ps_prop*ps_prop)*V10 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V8)
+lmer_grams_cuetype_V10 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V10 + (1 | id), data = list_of_clean_dataframes[[1]])
 
-lmer_grams_cuetype_V11 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V11 + I(ps_prop*ps_prop)*V11 + (1 | id), data = list_of_clean_dataframes[[1]])
-anova(lmer_grams_cuetype_V9)
+lmer_grams_cuetype_V11 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V11 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+# table of results
+tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9, lmer_grams_cuetype_V10, lmer_grams_cuetype_V11, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
 
 ```
 
+
 ```{r 1 sample T ED Cluster associations with intake, include=FALSE}
 
 # # grams
-lmer_grams_ED_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
-anova(lmer_grams_ED_V3)
+lmer_grams_ED_V3 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
 
+# table of results
+tab_model(lmer_grams_ED_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
 ```
 
 ```{r 1 sample T PS Cluster associations with intake, include=FALSE}
 
-# grams - no quads
-lmer_grams_PS_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
-anova(lmer_grams_PS_V3)
+# grams
+lmer_grams_PS_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
 
-lmer_grams_PS_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
-anova(lmer_grams_PS_V4)
+lmer_grams_PS_V4 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
 
-# kcal
-lmer_kcal_PS_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
-anova(lmer_kcal_PS_V3)
-
+# table of results
+tab_model(lmer_grams_PS_V3, lmer_grams_PS_V4,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 ```
 
 ```{r plot lmer_grams_PS_V3, include=FALSE}
@@ -143,14 +133,18 @@ t.test(list_of_clean_dataframes[[3]]$V3, mu = 0, alternative = "two.sided")
 # grams
 interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3) + scale_x_continuous(breaks = seq(0, .99, by = .33))
 
-# kcal
-interact_plot(lmer_kcal_PS_V3, pred = ps_prop, modx = V3) + scale_x_continuous(breaks = seq(0, .99, by = .33))
-
 # with 95% CIs
 interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, interval = TRUE, int.width = 0.95) + scale_x_continuous(breaks = seq(0, .99, by = .33))
 
+mean = round(mean(list_of_clean_dataframes[[3]]$V3),2)
+SD_plus = round(mean + sd(list_of_clean_dataframes[[3]]$V3),2)
+SD_minus = round(mean - sd(list_of_clean_dataframes[[3]]$V3),2)
+
+interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE,
+              modx.values = c(SD_minus, mean, SD_plus))
+
 # with points
-interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE) + scale_x_continuous(breaks = seq(0, .99, by = .33))
+interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE, interval = TRUE) + scale_x_continuous(breaks = seq(0, .99, by = .33))
 
 
 ```
@@ -189,16 +183,25 @@ ggplot(paired_stacked_df, aes(x = cuetype, y = V4)) +
 
 ```{r associations with intake, include=FALSE}
 # grams
-lmer_grams_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
-anova(lmer_grams_office_V3)
+lmer_grams_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
 
-lmer_grams_office_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[4]])
-anova(lmer_grams_office_V4)
+lmer_grams_office_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[4]])
 
-lmer_grams_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
-anova(lmer_grams_food_V3)
+lmer_grams_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
 
-lmer_grams_food_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[5]])
-anova(lmer_grams_food_V4)
+lmer_grams_food_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[5]])
 
+# table of results
+tab_model(lmer_grams_office_V3, lmer_grams_office_V4, lmer_grams_food_V3, lmer_grams_food_V4, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 ```
+
+```{r results table, include=FALSE}
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+
+tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9)
+
+tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9)
+```
+
