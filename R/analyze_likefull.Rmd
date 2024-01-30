@@ -28,6 +28,8 @@ library(psych)
 library(emmeans)
 library(stringr)
 library(ggsignif)
+library(performance) # used for check_model()
+library(influence.ME) # used for influence()
 
 # Source gen_likefull.R to generate byblock_full_long and byblock_like_long dataframes -- these contain liking and anticipated fullness ratings averaged by food-cue block (long format)
 source("R/gen_likefull.R")
@@ -120,6 +122,61 @@ novar_like_byCue$id # 73 ## ID 73 rated 0 for all office supplies
 
 ```
 
+```{r visualize variability by condition for each sub}
+
+
+pm_like_clean$id <- as.factor(pm_like_clean$id)
+pm_full_clean$id <- as.factor(pm_full_clean$id)
+
+# Boxplots of liking for HighED foods, by sub
+ggplot(pm_like_clean[pm_like_clean$category == "HighED",], aes(x = id, y = avg_liking, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of Liking for HighED Category",
+       x = "Person",
+       y = "Liking")
+
+# Boxplots of liking for LowED foods, by sub
+ggplot(pm_like_clean[pm_like_clean$category == "LowED",], aes(x = id, y = avg_liking, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of Liking for LowED Category",
+       x = "Person",
+       y = "Liking")
+
+# Boxplots of fullness for HighED foods, by sub
+ggplot(pm_full_clean[pm_full_clean$category == "HighED",], aes(x = id, y = avg_fullness, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of fullness for HighED Category",
+       x = "Person",
+       y = "Fullness")
+
+# Boxplots of fullness for LowED foods, by sub
+ggplot(pm_full_clean[pm_full_clean$category == "LowED",], aes(x = id, y = avg_fullness, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of fullness for LowED Category",
+       x = "Person",
+       y = "Fullness")
+
+# Boxplots of fullness for Large foods, by sub
+ggplot(pm_full_clean[pm_full_clean$portion == "Large",], aes(x = id, y = avg_fullness, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of fullness for Large Category",
+       x = "Person",
+       y = "Fullness")
+
+# Boxplots of fullness for Small foods, by sub
+ggplot(pm_full_clean[pm_full_clean$portion == "Small",], aes(x = id, y = avg_fullness, color = id)) +
+  geom_point() +
+  geom_boxplot() +
+  labs(title = "Distribution of fullness for Small Category",
+       x = "Person",
+       y = "Fullness")
+```
+
 ```{r count subs included in parametric analyses analyses}
 
 #### count subs included in parametric analyses analyses ####
@@ -131,97 +188,284 @@ n_distinct(distinct_like_byCue[!(distinct_like_byCue$id==73),]$id) # remove  73 
 
 ```
 
-
 #### Behavioral analyses ####
-
 The following code analyses liking and fullness by cue type/ED and amount and generates corresponding plots.
 Ratings are assessed for all subjects included in non-parametric analyses (n=61).
 
-# should run be numeric or categorical?
+``` {clean datasets}
 
-``` {r liking analyses}
-
-# create food-only dataframe by removing office conditions
+# create food-only liking dataframe by removing office conditions
 byblock_like_long_food<-byblock_like_long[!(byblock_like_long$cuetype=="office"),]
 
-# remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
+# remove NAs from liking and fullness data -- not needed to run analyses, but helpful for predicting values to plot results
 byblock_like_clean<-byblock_like_long[!is.na(byblock_like_long$avg_liking),]
 byblock_like_food_clean <- byblock_like_long_food[!is.na(byblock_like_long_food$avg_liking),]
+byblock_full_clean<-byblock_full_long[!is.na(byblock_full_long$avg_fullness),]
 
+# make run variables integers
+byblock_like_clean$run <- as.integer(byblock_like_clean$run)
+byblock_like_food_clean$run <- as.integer(byblock_like_food_clean$run)
+byblock_full_clean$run <- as.integer(byblock_full_clean$run)
 
-#### ANALYSES ####
-
-# should run be numeric or categorical?
-
-# liking ~ portion*cue type (food, office)
-liking_mixed_cuetype = lmer(avg_liking ~ portion*category + as.numeric(run) + (1 | id), data = byblock_like_clean)
-anova(liking_mixed_cuetype)
-
-# liking ~ portion*ED
-liking_mixed_ED = lmer(avg_liking ~ portion*category + as.numeric(run) + (1 | id), data = byblock_like_food_clean)
-anova(liking_mixed_ED)
-
-# get means and ses
-emmeans(liking_mixed_cuetype, specs = pairwise ~category|portion, type = "response")
-emmeans(liking_mixed_ED, specs = pairwise ~category|portion, type = "response")
+# make id variables factor
+byblock_like_clean$id <- as.factor(byblock_like_clean$id)
+byblock_like_food_clean$id <- as.factor(byblock_like_food_clean$id)
+byblock_full_clean$id <- as.factor(byblock_full_clean$id)
 
 ```
 
-fullness analyses
-``` {r fullness analyses}
-# remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
-byblock_full_clean<-byblock_full_long[!is.na(byblock_full_long$avg_fullness),]
+``` {r assess distributions}
 
-# fullness ~ portion size (large, small) x ED (high, low)
-fullness_mixed_ED = lmer(avg_fullness ~ portion*category + as.numeric(run) + (1 | id), data = byblock_full_clean)
-anova(fullness_mixed_ED)
+# histograms and density plots of avg_liking by condition
+ggplot(byblock_like_clean, aes(x = avg_liking)) + facet_grid(.~cond) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 colour = 1, fill = "white") +
+  geom_density(lwd = 1, colour = 4,
+               fill = 4, alpha = 0.25)
 
-emmeans(fullness_mixed_ED, specs = pairwise ~category|portion, type = "response")
+# liking distributions are not normal -- skewed (esp for High ED foods) and bounded 
+
+# histograms and density plots of avg_fullness by condition
+ggplot(byblock_full_clean, aes(x = avg_fullness)) + facet_grid(.~cond) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 colour = 1, fill = "white") +
+  geom_density(lwd = 1, colour = 4,
+               fill = 4, alpha = 0.25)
+
+# fullness distributions are not normal -- bounded 
+
+```
+
+``` {r liking ~ cuetype*portion with lmer}
+
+#### run lmer ####
+
+# liking ~ portion*cue type (food, office)
+lmer_liking_cuetype = lmer(avg_liking ~ cuetype*portion + run + (1 | id), data = byblock_like_clean)
+anova(lmer_liking_cuetype)
+
+
+#### test assumptions ####
+
+# Homogeneity of Variance - lmer_liking_cuetype
+byblock_like_clean$res.lmer_liking_cuetype<- residuals(lmer_liking_cuetype) # add residuals
+byblock_like_clean$Abs.res.lmer_liking_cuetype <-abs(byblock_like_clean$res.lmer_liking_cuetype) #creates a new column with the absolute value of the residuals
+byblock_like_clean$Abs2.res.liking_mixed_cuetype <- byblock_like_clean$res.lmer_liking_cuetype^2 #squares the absolute values of the residuals to provide the more robust estimate
+Levene.Model_liking_cuetype <- lm(Abs2.res.liking_mixed_cuetype ~ id, data=byblock_like_clean) #ANOVA of the squared residuals
+anova(Levene.Model_liking_cuetype) # Since the p value is greater than 0.05, we can say that the variance of the residuals is equal and therefore the assumption of homoscedasticity is met
+
+
+leveneTest(residuals(lmer_liking_cuetype) ~ byblock_like_clean$id) # significant (p<.05): violates assumption of equal variances (homoscedasticity) by id
+boxplot(residuals(lmer_liking_cuetype) ~ byblock_like_clean$id) # visualize residuals by id
+
+leveneTest(residuals(lmer_liking_cuetype) ~ byblock_like_clean$cuetype) # does not violate assumption
+boxplot(residuals(lmer_liking_cuetype) ~ byblock_like_clean$cuetype)
+
+leveneTest(residuals(lmer_liking_cuetype) ~ byblock_like_clean$portion) # does not violate assumption
+boxplot(residuals(lmer_liking_cuetype) ~ byblock_like_clean$portion)
+
+# assess random effects (i.e., estimated intercepts for each id) 
+# The estimated intercepts represent the expected value of the dependent variable when all predictors are at their reference levels. If your model predicts values outside the permissible range of the dependent variable, it suggests that the model might not be well-specified or might not fit the data appropriately.
+ranef(lmer_liking_cuetype)
+
+# fitted vs. residual plots 
+plot(liking_mixed_cuetype)
+plot(liking_mixed_ED)
+# see threads on residual plot that looks similar to this:
+# https://stats.stackexchange.com/questions/120751/not-sure-about-the-interpretation-of-this-residual-plot
+# https://stats.stackexchange.com/questions/524078/assumptions-of-linearity-and-homoskedasticity-when-the-dv-is-a-likert-scale-ho 
+# the tilt in the plot is due to the boundedness of the DV (liking is assessed on scale from 0-100)
+
+# qq plots
+qqnorm(resid(liking_mixed_cuetype))
+qqline(resid(liking_mixed_cuetype))
+
+
+
+qqmath(ranef(liking_mixed_cuetype, condVar = TRUE), strip = FALSE)$id
+
+
+
+# Homogeneity: Need to Check by plotting residuals vs predicted values.
+# Note that "residuals" above refer to both the unit-level residuals (often called "errors") and the random effects. For the random effects, this can be problematic where only a small number of groups/clusters exist in the sample. In the simulated example given in the OP there are 7 clusters. There are lots of rules of thumb to inform a sufficient number of clusters, and 7 is generally thought to be difficult to draw any conclusions.
+
+# Normality of error term: need to check by histogram, QQplot of residuals, even Kolmogorov-Smirnov test.
+
+
+ggplot(data = byblock_like_clean, aes(predict_liking_mixed_cuetype, res_liking_mixed_cuetype)) +
+  geom_point() +
+  facet_grid( ~ cond ) + geom_smooth(method='lm')
+
+# https://rdrr.io/cran/nlme/man/qqnorm.lme.html
+
+qqnorm(resid(liking_mixed_cuetype))
+qqline(resid(liking_mixed_cuetype))
+
+
+#### get estimated marginal means and SEs ####
+emmeans(lmer_liking_cuetype, specs = pairwise ~cuetype|portion, type = "response")
+emmeans(lmer_liking_cuetype, specs = pairwise ~cuetype, type = "response")
+
+```
+
+
+``` {r liking ~ ED*portion with lmer}
+
+#### ANALYSES ####
+
+# liking ~ portion*ED (category = highED, lowED)
+lmer_liking_ED = lmer(avg_liking ~ category*portion + run + (1 | id), data = byblock_like_food_clean)
+
+anova(lmer_liking_ED)
+
+# get estimated marginal means and SEs
+emmeans(lmer_liking_ED, specs = pairwise ~category|portion, type = "response")
+emmeans(lmer_liking_ED, specs = pairwise ~category, type = "response")
+
+
+#### Test assumptions ####
+
+# Homogeneity of Variance - lmer_liking_ED
+byblock_like_food_clean$res.lmer_liking_ED<- residuals(lmer_liking_ED) # add residuals 
+byblock_like_food_clean$Abs.res.lmer_liking_ED <-abs(byblock_like_food_clean$res.lmer_liking_ED) #creates a new column with the absolute value of the residuals
+byblock_like_food_clean$Abs2.res.lmer_liking_ED <- byblock_like_food_clean$res.lmer_liking_ED^2 #squares the absolute values of the residuals to provide the more robust estimate
+Levene.Model_liking_ED <- lm(Abs2.res.lmer_liking_ED ~ id, data=byblock_like_food_clean) #ANOVA of the squared residuals
+anova(Levene.Model_liking_ED) # Since the p value is greater than 0.05, we can say that the variance of the residuals is equal and therefore the assumption of homoscedasticity is met
+
+leveneTest(residuals(lmer_liking_ED) ~ byblock_like_food_clean$id) # significant
+boxplot(residuals(lmer_liking_ED) ~ byblock_like_food_clean$id) # visualize residuals by id
+
+leveneTest(residuals(lmer_liking_ED) ~ byblock_like_food_clean$category) # does not violate assumption
+boxplot(residuals(lmer_liking_ED) ~ byblock_like_food_clean$category)
+
+leveneTest(residuals(lmer_liking_ED) ~ byblock_like_food_clean$portion) # does not violate assumption
+boxplot(residuals(lmer_liking_ED) ~ byblock_like_food_clean$portion)
+
+# fitted vs. residual plots 
+plot(lmer_liking_ED)
+
+# fitted vs. residual plots - color by ID
+plot(lmer_liking_ED, resid(., scaled=TRUE) ~ fitted(.), abline = 0,pch=16,col=byblock_like_food_clean$id,xlab="Fitted values",ylab="Standardised residuals")
+
+# fitted vs. residual plots - facet by id
+plot(lmer_liking_ED, resid(., scaled=TRUE) ~ fitted(.)| id, abline = 0,pch=16,xlab="Fitted values",ylab="Standardised residuals")
+
+#compare the difference in residuals between random effect levels using default boxplots
+plot(lmer_liking_ED, as.factor(id) ~ resid(., scaled=TRUE),abline=0,pch=16,xlab="Standardised residuals",ylab="IDs")
+
+# see threads on residual plot that looks similar to this:
+# https://stats.stackexchange.com/questions/120751/not-sure-about-the-interpretation-of-this-residual-plot
+# https://stats.stackexchange.com/questions/524078/assumptions-of-linearity-and-homoskedasticity-when-the-dv-is-a-likert-scale-ho 
+# the tilt in the plot is due to the boundedness of the DV (liking is assessed on scale from 0-100)
+
+library(performance)
+check_model(lmer_liking_ED)
+
+# qq plot with qq line
+lattice::qqmath(lmer_liking_ED)
+
+# leverage (hatvalues) against standardised residuals plot
+plot(lmer_liking_ED, rstudent(.) ~ hatvalues(.))
+
+library(influence.ME)
+infl <- influence(lmer_liking_ED, group = "id")
+cooks.distance(infl)
+plot(infl, which = "cook")
+
+
+
+#Calculate Cook's Distance
+cd.lmer_liking_ED<-cooks.distance(lmer_liking_ED)
+#N.B. If Cook's distance is greater than 1 this highlights problematic datapoints
+
+#Plot leverage and Cook's distance together
+par(mfrow=c(1,1))
+plot(lev.lmer_liking_ED,pch=16,col="red",ylim=c(0,1.2),las=1,ylab="Leverage/Cook's distance value")
+points(cd.lmer_liking_ED,pch=17,col="blue")
+points(x=150,y=1.1,pch=16,col="red")
+points(x=150,y=0.9,pch=17,col="blue")
+text(x=155,y=1.1,"Leverage",adj=c(0,0.5))
+text(x=155,y=0.9,"Cook's distance",adj=c(0,0.5))
+
+qqmath(ranef(liking_mixed_cuetype, condVar = TRUE), strip = FALSE)$id
+lattice::qqmath(lmer_liking_ED)
+
+
+
+# Homogeneity: Need to Check by plotting residuals vs predicted values.
+# Note that "residuals" above refer to both the unit-level residuals (often called "errors") and the random effects. For the random effects, this can be problematic where only a small number of groups/clusters exist in the sample. In the simulated example given in the OP there are 7 clusters. There are lots of rules of thumb to inform a sufficient number of clusters, and 7 is generally thought to be difficult to draw any conclusions.
+
+# Normality of error term: need to check by histogram, QQplot of residuals, even Kolmogorov-Smirnov test.
+
+
+ggplot(data = byblock_like_clean, aes(predict_liking_mixed_cuetype, res_liking_mixed_cuetype)) +
+  geom_point() +
+  facet_grid( ~ cond ) + geom_smooth(method='lm')
+
+
+# https://rdrr.io/cran/nlme/man/qqnorm.lme.html
+
+qqnorm(resid(liking_mixed_cuetype))
+qqline(resid(liking_mixed_cuetype))
+qqnorm(resid(liking_mixed_ED))
+qqline(resid(liking_mixed_ED))
+
+
+
+```
+
+
+``` {r fullness analyses with lmer}
+# fullness ~ portion size (large, small) x ED (category = highED, lowED)
+lmer_fullness_ED = lmer(avg_fullness ~ category*portion + run + (1 | id), data = byblock_full_clean)
+anova(lmer_fullness_ED)
+
+check_model(lmer_fullness_ED)
+
+
+# get estimated marginal means and SEs
+emmeans(lmer_fullness_ED, specs = pairwise ~portion, type = "response")
+emmeans(lmer_fullness_ED, specs = pairwise ~category, type = "response")
+emmeans(lmer_fullness_ED, specs = pairwise ~portion|category, type = "response")
+emmeans(lmer_fullness_ED, specs = pairwise ~category|portion, type = "response")
 
 
 ```
 
 Figure 1:
-``` {r liking and fullness plots}
+``` {r adjusted liking and fullness violin plots }
 
 # get adjusted response after adjusting for covariates in model 
-byblock_like_clean$predict_liking_mixed_cuetype <- predict(liking_mixed_cuetype, type="response")
-byblock_like_food_clean$predict_liking_mixed_ED <- predict(liking_mixed_ED, type="response")
-byblock_full_clean$predict_fullness_mixed_ED <- predict(fullness_mixed_ED, type="response")
+byblock_like_clean$predict_lmer_liking_cuetype <- predict(lmer_liking_cuetype, type="response")
+byblock_like_food_clean$predict_lmer_liking_ED <- predict(lmer_liking_ED, type="response")
+byblock_full_clean$predict_lmer_fullness_ED <- predict(lmer_fullness_ED, type="response")
 
-
-quartiles_by_group <- byblock_like_clean %>%
-  group_by(cuetype, portion) %>%
-  summarize(
-    Q1 = quantile(predict_liking_mixed_cuetype, 0.25),
-    Q3 = quantile(predict_liking_mixed_cuetype, 0.75)
-  )
-print(quartiles_by_group)
 
 #### VIOLIN PLOTS with ggplot####
 
-# liking ~ amount x cue type
-plot_liking_cuetype <- ggplot(byblock_like_clean, aes(x=cuetype, y=predict_liking_mixed_cuetype, fill = portion)) +
+# liking ~ amount x cue type -- plot adjusted 
+plot_liking_cuetype <- ggplot(byblock_like_clean, aes(x=cuetype, y=predict_lmer_liking_cuetype, fill = portion)) +
   theme_bw() +
   geom_violin(trim=FALSE) +
-  geom_signif(comparisons = list(c("food","Office")), y_position = 110, map_signif_level = TRUE) +
+  geom_signif(comparisons = list(c("food","office")), y_position = 115, map_signif_level = TRUE) +
   geom_boxplot(aes(group = interaction(cuetype, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Cue Type",
        y = "Adjusted liking") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
-  ylim(0, 125) + 
+  ylim(-10, 125) + 
   scale_x_discrete(labels = c("food" = "Food",
-                              "Office" = "Office Supplies"))
+                              "office" = "Office Supplies"))
+
 
 plot_liking_cuetype
 
 # liking ~ amount x ED (category)
-plot_liking_ED <- ggplot(byblock_like_food_clean, aes(x=category, y=predict_liking_mixed_ED, fill = portion)) +
+plot_liking_ED <- ggplot(byblock_like_food_clean, aes(x=category, y=predict_lmer_liking_ED, fill = portion)) +
   theme_bw() +
   geom_violin(trim=FALSE)+
-  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 110,
+  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 115,
               map_signif_level = TRUE) +
   geom_boxplot(aes(group = interaction(category, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
@@ -229,17 +473,16 @@ plot_liking_ED <- ggplot(byblock_like_food_clean, aes(x=category, y=predict_liki
        y = "Adjusted liking") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
-  ylim(0, 125) +
+  ylim(-10, 125) +
   scale_x_discrete(labels = c("HighED" = "Higher",
                               "LowED" = "Lower"))
 
 plot_liking_ED
 
 # fullness ~ amount x ED
-plot_fullness_ED <- ggplot(byblock_full_clean, aes(x=category, y=predict_fullness_mixed_ED, fill = portion)) +
+plot_fullness_ED <- ggplot(byblock_full_clean, aes(x=category, y=predict_lmer_fullness_ED, fill = portion)) +
   theme_bw() +
   geom_violin(trim=FALSE)+
-  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 110, map_signif_level = TRUE) +
   geom_boxplot(aes(group = interaction(category, portion)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
   labs(x="Energy Density",
@@ -248,8 +491,82 @@ plot_fullness_ED <- ggplot(byblock_full_clean, aes(x=category, y=predict_fullnes
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
   ylim(-10, 125) +
   scale_x_discrete(labels = c("HighED" = "Higher",
-                              "LowED" = "Lower"))
+                              "LowED" = "Lower")) +
+  geom_signif(comparisons = list(c("HighED", "LowED")), y_position = 115, map_signif_level = TRUE)
 
-plot_fullness_ED # need to add significance bar for portion size comparison
+plot_fullness_ED +
+  geom_signif(
+    y_position = c(105, 105), xmin = c(0.8, 1.8), xmax = c(1.2, 2.2),
+    annotation = c("***", "***"), tip_length = .03
+  )
+
+
+library(ggpubr)
+
+plot_fullness_ED +
+  stat_compare_means(comparisons = list(c("HighED", "LowED"), c("Large", "Small")),
+                     label = "p.signif",
+                     method = "t.test",
+                     textsize = 5,
+                     test.shortname = c("category", "portion"),
+                     vjust = 0.5,
+                     position = position_dodge(width = 0.9))
+
+plot_fullness_ED
+
+```
+
+``` {r liking and fullness plots - alternative }
+
+#### with sjplot #### 
+#install.packages("sjPlot")
+library(sjPlot)
+
+### plot predicted values (marginal effects) with sjPlot
+# type = "int" plots marginal effects of interaction terms in model
+
+plot_model(lmer_liking_cuetype, type = "int", ci.lvl = 0.95) + ylim(0, 100)
+plot_model(lmer_liking_ED, type = "int", ci.lvl = 0.95) + ylim(0, 100)
+plot_model(lmer_fullness_ED, type = "int", ci.lvl = 0.95) + ylim(0, 100)
+
+### plot estimates with sjPlot
+plot_model(lmer_liking_cuetype, show.values = TRUE)
+plot_model(lmer_liking_ED, show.values = TRUE)
+plot_model(lmer_fullness_ED, show.values = TRUE)
+
+### plot predicted value manually
+
+quartiles_by_group <- byblock_like_clean %>%
+  group_by(cuetype, portion) %>%
+  summarize(
+    Q1 = quantile(predict_lmer_liking_cuetype, 0.25),
+    Q3 = quantile(predict_lmer_liking_cuetype, 0.75)
+  )
+print(quartiles_by_group)
+
+# boxplot
+ggplot(byblock_like_clean, aes(x = cuetype, y = predict_lmer_liking_cuetype, fill = portion)) +  
+geom_boxplot(outlier.shape = NA)+ 
+geom_point(position = position_jitterdodge(), alpha=0.3) 
+
+
+#### dotplot with ggplot####
+# box + dot plot -- average liking (not predicted)
+p<-ggplot(byblock_like_clean, aes(x=cuetype, y=avg_liking, fill = portion)) +
+  geom_boxplot(position=position_dodge(0.8)) +
+  geom_dotplot(binaxis='y', stackdir='center', 
+               position=position_dodge(0.8), dotsize=.2)
+
+p
+
+# box + dot plot -- adjusted (predicted) liking
+p_adj<-ggplot(byblock_like_clean, aes(x=cuetype, y=predict_lmer_liking_cuetype, fill = portion)) +
+  geom_boxplot(position=position_dodge(0.8)) +
+  geom_dotplot(binaxis='y', stackdir='center', 
+               position=position_dodge(0.8), dotsize=.2) +
+    ylim(0, 100)
+
+p_adj
+
 
 ```
