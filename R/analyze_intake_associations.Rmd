@@ -1,13 +1,13 @@
 ---
-title: "Associations with intake"
+title: "Associations between extracted BOLD responses and intake"
 author: "baf44"
-date: "1/23/2023"
+date: "1/23/2024"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
 
-Code to ...
+Code to examine associations between extracted BOLD responses and the portion size effect
 
 # Setup
 
@@ -18,8 +18,6 @@ library(ggplot2)
 library(dplyr)
 library(sjPlot)
 library(interactions) # to plot lmer interaction
-#library(performance) # used for check_model()
-#library(influence.ME) # used for influence()
 
 # Source data_org.R to load and process intake data into long form
 source("R/data_org.R")
@@ -48,6 +46,7 @@ betas_paired_PScon_food <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/
 list_of_orig_dataframes <- list(betas_1samp_food_office, betas_1samp_EDcon, betas_1samp_PScon_food, betas_1samp_PScon_office, betas_paired_PScon_office, betas_paired_PScon_food)
 list_of_clean_dataframes <- list()
 
+# clean each orig dataframe and add to list_of_clean_dataframes
 for (i in seq_along(list_of_orig_dataframes)) {
   df <- list_of_orig_dataframes[[i]]
   
@@ -76,9 +75,26 @@ for (i in seq_along(list_of_orig_dataframes)) {
   list_of_clean_dataframes[[i]] <- df
 }
 
+#### additional cleaning of datasets with paired t-test clusters
+# add cue type column -- identifies what condition the extracted larger-smaller response is for
+list_of_clean_dataframes[[5]]$cuetype <- "office"
+list_of_clean_dataframes[[6]]$cuetype <- "food"
+
+# stack dataframes
+paired_stacked_df <- rbind(list_of_clean_dataframes[[5]], list_of_clean_dataframes[[6]])
+
 ```
 
-```{r 1 sample T food-office cluster associations with intake, include=FALSE}
+# Associations with intake
+
+Models predict intake (grams or kcal) from the interaction between BOLD response and meal portion size. A significant interaction indicates BOLD responses moderate the portion size effect (i.e., the assocation between intake and portion size)
+
+Note: clusters where data was extracted from are labeled in dataframes as V3, V4 ... in order by cluster size. Models are run using data extract from each cluster
+
+## Using clusters from 1-sample t-tests 
+```{r associations w/ BOLD responses to cue type (food-office), include=FALSE}
+
+# these analyses use clusters identified via 1-sample t-test on cue type contrast (food - office)
 
 #### grams ####
 lmer_grams_cuetype_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
@@ -127,7 +143,9 @@ tab_model(lmer_kcal_cuetype_V3, lmer_kcal_cuetype_V4, lmer_kcal_cuetype_V5, lmer
 ```
 
 
-```{r 1 sample T ED Cluster associations with intake, include=FALSE}
+```{r associations w/ BOLD responses to ED (higher-lower), include=FALSE}
+
+# these analyses use clusters identified via 1-sample t-test on ED contrast (higher - lower, across food amount)
 
 #### grams ####
 lmer_grams_ED_V3 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
@@ -143,7 +161,9 @@ tab_model(lmer_kcal_ED_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"
 
 ```
 
-```{r 1 sample T PS - food Cluster associations with intake, include=FALSE}
+```{r associations w/ BOLD responses to food amount (larger-smaller), include=FALSE}
+
+# these analyses use clusters identified via 1-sample t-test on food amount contrast (larger - smaller, across ED)
 
 #### grams ####
 lmer_grams_PS_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
@@ -163,7 +183,9 @@ tab_model(lmer_kcal_PS_food_V3, lmer_kcal_PS_food_V4,  show.ci = FALSE, show.se 
 
 ```
 
-```{r 1 sample T PS - office amount Cluster associations with intake, include=FALSE}
+```{r associations w/ BOLD responses to office supply amount (larger-smaller), include=FALSE}
+
+# these analyses use clusters identified via 1-sample t-test on office supply amount contrast (larger - smaller)
 
 #### grams ####
 lmer_grams_PS_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
@@ -179,10 +201,9 @@ tab_model(lmer_kcal_PS_office_V3,  show.ci = FALSE, show.se = TRUE, p.style = c(
 
 ```
 
-
 ```{r plot lmer_grams_PS_food_V3, include=FALSE}
 
-# histagram of BOLD responses 
+# histogram of BOLD responses 
 hist(list_of_clean_dataframes[[3]]$V3)
 t.test(list_of_clean_dataframes[[3]]$V3, mu = 0, alternative = "two.sided")
 
@@ -197,25 +218,13 @@ interact_plot(lmer_grams_PS_food_V3, pred = ps_prop, modx = V3, plot.points = TR
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = .5))
 ```
 
-#### Paired T test clusters ####
-```{r clean 2 sample T datasets, include=FALSE}
-
-# add cue type column -- identifies what blocks were included in the large-small contrast
-list_of_clean_dataframes[[5]]$cuetype <- "office"
-list_of_clean_dataframes[[6]]$cuetype <- "food"
-
-# stack dataframes
-paired_stacked_df <- rbind(list_of_clean_dataframes[[5]], list_of_clean_dataframes[[6]])
-
-```
+## Using clusters from paired t-tests
 
 ```{r plot paired T, include=FALSE}
 # Confirm what was observed in AFNI
 
 #boxplot(V3 ~ cuetype, data = paired_stacked_df) # V3 = cluster 1 
 #boxplot(V4 ~ cuetype, data = paired_stacked_df) # V4 = cluster 2 
-
-library(ggplot2)
 
 ggplot(paired_stacked_df, aes(x = cuetype, y = V3)) +
   geom_boxplot() +
@@ -229,7 +238,11 @@ ggplot(paired_stacked_df, aes(x = cuetype, y = V4)) +
 
 ```
 
-```{r associations with intake, include=FALSE}
+```{r associations w/ responses to amount (larger - smaller) from paired-T test clusters, include=FALSE}
+
+# these analyses use clusters identified via paired t-test (food vs. office) on amount contrast (larger - smaller)
+## from the same 2 clusters (V3, V4), responses to amount (larger - smaller) were extract for food and office supply conditions
+
 #### grams ####
 lmer_grams_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
 
@@ -255,15 +268,5 @@ lmer_kcal_food_V4 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_p
 # table of results
 tab_model(lmer_kcal_office_V3, lmer_kcal_food_V3, lmer_kcal_office_V4, lmer_kcal_food_V4, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
-```
-
-```{r results table, include=FALSE}
-library(sjPlot)
-library(sjmisc)
-library(sjlabelled)
-
-tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9)
-
-tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9)
 ```
 
