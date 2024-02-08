@@ -16,6 +16,8 @@ library(lme4)
 library(lmerTest) # need this to get p-values with anova()
 library(ggplot2)
 library(dplyr)
+library(sjPlot)
+library(interactions) # to plot lmer interaction
 #library(performance) # used for check_model()
 #library(influence.ME) # used for influence()
 
@@ -30,8 +32,10 @@ betas_1samp_food_office <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/
 
 betas_1samp_EDcon <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_High-Low_allPS.txt", header=FALSE)
 
-betas_1samp_PScon <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_Large-Small_allED.txt", header=FALSE)
-  
+betas_1samp_PScon_food <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_Large-Small_allED.txt", header=FALSE)
+
+betas_1samp_PScon_office <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/1sampleT/ped_fd-0.9_b20_3runs_noGSR_03-21-23/betas_clust_mask_1samp_OfficeLarge-Small.txt", header=FALSE)
+ 
 # import beta values extract from paired T test result (food vs. office, PS contrast)
 betas_paired_PScon_office <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/level2/2sample-pairedT/ped_fd-0.9_b20_3runs_noGSR_03-24-23/betas_clust_mask_pairedT_cuetype_OfficeLarge-Small.txt", header=FALSE)
 
@@ -41,7 +45,7 @@ betas_paired_PScon_food <- read.delim("BIDS/derivatives/analyses/foodcue-paper1/
 
 ```{r clean datasets, include=FALSE}
 
-list_of_orig_dataframes <- list(betas_1samp_food_office, betas_1samp_EDcon, betas_1samp_PScon, betas_paired_PScon_office, betas_paired_PScon_food)
+list_of_orig_dataframes <- list(betas_1samp_food_office, betas_1samp_EDcon, betas_1samp_PScon_food, betas_1samp_PScon_office, betas_paired_PScon_office, betas_paired_PScon_food)
 list_of_clean_dataframes <- list()
 
 for (i in seq_along(list_of_orig_dataframes)) {
@@ -76,7 +80,7 @@ for (i in seq_along(list_of_orig_dataframes)) {
 
 ```{r 1 sample T food-office cluster associations with intake, include=FALSE}
 
-# grams
+#### grams ####
 lmer_grams_cuetype_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
 
 lmer_grams_cuetype_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[1]])
@@ -98,66 +102,110 @@ lmer_grams_cuetype_V11 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi 
 # table of results
 tab_model(lmer_grams_cuetype_V3, lmer_grams_cuetype_V4, lmer_grams_cuetype_V5, lmer_grams_cuetype_V6, lmer_grams_cuetype_V7, lmer_grams_cuetype_V8, lmer_grams_cuetype_V9, lmer_grams_cuetype_V10, lmer_grams_cuetype_V11, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
+#### kcal ####
+lmer_kcal_cuetype_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V4 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V5 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V5 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V6 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V6 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V7 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V7 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V8 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V8 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V9 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V9 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V10 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V10 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+lmer_kcal_cuetype_V11 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V11 + (1 | id), data = list_of_clean_dataframes[[1]])
+
+# table of results
+tab_model(lmer_kcal_cuetype_V3, lmer_kcal_cuetype_V4, lmer_kcal_cuetype_V5, lmer_kcal_cuetype_V6, lmer_kcal_cuetype_V7, lmer_kcal_cuetype_V8, lmer_kcal_cuetype_V9, lmer_kcal_cuetype_V10, lmer_kcal_cuetype_V11, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
 ```
 
 
 ```{r 1 sample T ED Cluster associations with intake, include=FALSE}
 
-# # grams
+#### grams ####
 lmer_grams_ED_V3 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
 
 # table of results
 tab_model(lmer_grams_ED_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
 
-```
-
-```{r 1 sample T PS Cluster associations with intake, include=FALSE}
-
-# grams
-lmer_grams_PS_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
-
-lmer_grams_PS_V4 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
+#### kcal ####
+lmer_kcal_ED_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[2]])
 
 # table of results
-tab_model(lmer_grams_PS_V3, lmer_grams_PS_V4,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+tab_model(lmer_kcal_ED_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
 ```
 
-```{r plot lmer_grams_PS_V3, include=FALSE}
+```{r 1 sample T PS - food Cluster associations with intake, include=FALSE}
 
-library(interactions)
+#### grams ####
+lmer_grams_PS_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
 
+lmer_grams_PS_food_V4 <- lmer(grams ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
+
+# table of results
+tab_model(lmer_grams_PS_food_V3, lmer_grams_PS_food_V4,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
+#### kcal ####
+lmer_kcal_PS_food_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[3]])
+
+lmer_kcal_PS_food_V4 <- lmer(kcal ~ preFF + avg_vas + meal_order +  sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[3]])
+
+# table of results
+tab_model(lmer_kcal_PS_food_V3, lmer_kcal_PS_food_V4,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
+```
+
+```{r 1 sample T PS - office amount Cluster associations with intake, include=FALSE}
+
+#### grams ####
+lmer_grams_PS_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
+
+# table of results
+tab_model(lmer_grams_PS_office_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
+#### kcal ####
+lmer_kcal_PS_office_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
+
+# table of results
+tab_model(lmer_kcal_PS_office_V3,  show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
+```
+
+
+```{r plot lmer_grams_PS_food_V3, include=FALSE}
+
+# histagram of BOLD responses 
 hist(list_of_clean_dataframes[[3]]$V3)
 t.test(list_of_clean_dataframes[[3]]$V3, mu = 0, alternative = "two.sided")
 
-# grams
-interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3) + scale_x_continuous(breaks = seq(0, .99, by = .33))
 
-# with 95% CIs
-interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, interval = TRUE, int.width = 0.95) + scale_x_continuous(breaks = seq(0, .99, by = .33))
-
+# interaction plot
 mean = round(mean(list_of_clean_dataframes[[3]]$V3),2)
 SD_plus = round(mean + sd(list_of_clean_dataframes[[3]]$V3),2)
 SD_minus = round(mean - sd(list_of_clean_dataframes[[3]]$V3),2)
 
-interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE,
-              modx.values = c(SD_minus, mean, SD_plus))
-
-# with points
-interact_plot(lmer_grams_PS_V3, pred = ps_prop, modx = V3, plot.points = TRUE, interval = TRUE) + scale_x_continuous(breaks = seq(0, .99, by = .33))
-
-
+interact_plot(lmer_grams_PS_food_V3, pred = ps_prop, modx = V3, plot.points = TRUE, modx.values = c(SD_minus, mean, SD_plus), line.thickness = 2) + 
+  theme(panel.grid.major = element_blank()) + 
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = .5))
 ```
 
 #### Paired T test clusters ####
 ```{r clean 2 sample T datasets, include=FALSE}
 
 # add cue type column -- identifies what blocks were included in the large-small contrast
-list_of_clean_dataframes[[4]]$cuetype <- "office"
-list_of_clean_dataframes[[5]]$cuetype <- "food"
+list_of_clean_dataframes[[5]]$cuetype <- "office"
+list_of_clean_dataframes[[6]]$cuetype <- "food"
 
 # stack dataframes
-paired_stacked_df <- rbind(list_of_clean_dataframes[[4]], list_of_clean_dataframes[[5]])
+paired_stacked_df <- rbind(list_of_clean_dataframes[[5]], list_of_clean_dataframes[[6]])
 
 ```
 
@@ -182,17 +230,31 @@ ggplot(paired_stacked_df, aes(x = cuetype, y = V4)) +
 ```
 
 ```{r associations with intake, include=FALSE}
-# grams
-lmer_grams_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[4]])
+#### grams ####
+lmer_grams_office_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
 
-lmer_grams_office_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[4]])
+lmer_grams_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[6]])
 
-lmer_grams_food_V3 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
+lmer_grams_office_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[5]])
 
-lmer_grams_food_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[5]])
+lmer_grams_food_V4 <- lmer(grams ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[6]])
 
 # table of results
-tab_model(lmer_grams_office_V3, lmer_grams_office_V4, lmer_grams_food_V3, lmer_grams_food_V4, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+tab_model(lmer_grams_office_V3, lmer_grams_food_V3, lmer_grams_office_V4, lmer_grams_food_V4, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
+
+#### kcal ####
+lmer_kcal_office_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[5]])
+
+lmer_kcal_food_V3 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V3 + (1 | id), data = list_of_clean_dataframes[[6]])
+
+lmer_kcal_office_V4 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[5]])
+
+lmer_kcal_food_V4 <- lmer(kcal ~ preFF + avg_vas + meal_order + sex + bmi + ps_prop*V4 + (1 | id), data = list_of_clean_dataframes[[6]])
+
+# table of results
+tab_model(lmer_kcal_office_V3, lmer_kcal_food_V3, lmer_kcal_office_V4, lmer_kcal_food_V4, show.ci = FALSE, show.se = TRUE, p.style = c("stars"), collapse.se = TRUE)
+
 ```
 
 ```{r results table, include=FALSE}
