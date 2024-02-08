@@ -241,6 +241,9 @@ label(attended_df$fmi) <- "Fat mass index"
 # generate table: include vs. excluded
 table1(~ sex + age_yr + race + ethnicity + income_recode + mom_edu_recode + risk_status_mom + mom_bmi_method + bmi_percentile + fmi| included, data=attended_df)
 
+
+parentally_reported_maternal_ids <- attended_df$id[attended_df$included == "Included" & attended_df$mom_bmi_method == "reported"]
+print(parentally_reported_maternal_ids)
 ```
 
 ```{r compare demo: included vs excluded}
