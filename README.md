@@ -54,8 +54,8 @@ This folder contains code used to process MRI data following fmriprep
 #### BIDS/code/afni/groupanalyses_paper1
 
 This folder contains code to run group-level analyses. Files starting with 'G' contain code for statistical analyses in AFNI.
-wrapper-python.py must be run before statistical analyses in AFNI ('G'); this script generates index and covariate files used in analyses (index files list subjects to be included in analyses)
-Files appended with .slurm and .pbs were used to run their corresponding scripts on Penn State's computing cluster
+wrapper-python.py must be run before statistical analyses in AFNI ('G'); this script generates index and covariate files used in analyses (index files list subjects to be included in analyses).
+Files appended with .slurm and .pbs were used to run their corresponding scripts on Penn State's computing cluster.
 Files prepended with sensitivity_ are the same as their 'G' counterparts but include an additional covariate (snack intake, yes/no)
 
 -   G0_copylevel1: copies level-1 GLM files in paper-specific analysis folder
