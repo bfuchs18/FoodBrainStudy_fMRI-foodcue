@@ -53,7 +53,22 @@ This folder contains code used to process MRI data following fmriprep
 
 #### BIDS/code/afni/groupanalyses_paper1
 
-This folder contains code to run group-level analyses.
+This folder contains code to run group-level analyses. Files starting with 'G' contain code for statistical analyses in AFNI.
+wrapper-python.py must be run before statistical analyses in AFNI ('G'); this script generates index and covariate files used in analyses (index files list subjects to be included in analyses).
+Files appended with .slurm and .pbs were used to run their corresponding scripts on Penn State's computing cluster.
+Files prepended with sensitivity_ are the same as their 'G' counterparts but include an additional covariate (snack intake, yes/no)
 
--   FILE: {description}
--   FILE: {description}
+-   G0_copylevel1: copies level-1 GLM files in paper-specific analysis folder
+-   G1_1sampleT: conducts 1-sample t-tests on BOLD responses to cue type, amount, and energy density
+-   G2_pairedT: tests differences in BOLD responses to amount (large - small) by cue type (food vs. office) and food energy density (higher vs. lower)
+-   G3_2sampleT: tests differences in BOLD responses by familial risk status for obesity (high vs. low)
+-   G4_1sampleT_FMI: conducts 1-sample t-tests on BOLD responses to cue type, amount, and energy density with fat mass index covariate
+-   G5_parametric-analyses-1sampleT: tests whether BOLD responses are parametrically modulated by %want
+-   G5_parametric-analyses-paired: tests whether parametric modulation of BOLD responses by %want differs by food amount and energy density
+-   Gopt_MaskConjunction: overlays results of 1-sample t-tests generated via G1_1sampleT
+-   prep_3dttest_covTable.py: defines a function to generate a csv with all covariates needed for fmri analyses
+-   prep_avg_motion.py: defines a function to generate database with average motion (framewise displacement) for each subject
+-   prep_index_byrun.py: defines a function to generate index files for non-parametric analyses
+-   prep_index_PM.py: defines a function to generate index files for parametric analyses
+-   wrapper-python.py: calls functions in prep_ files to generate index and covariate files needed for analyses
+
