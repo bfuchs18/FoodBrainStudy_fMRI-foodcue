@@ -2,8 +2,6 @@
 
 This project contains code for the paper "Does 'portion size' matter? Neural responses to food and non-food cues presented in varying amounts (Fuchs et al.)"
 
-\*\* this document is in progress \*\*
-
 ## Folder Structure
 
 ### R/
@@ -26,9 +24,11 @@ In this folder:
 #### data/raw
 
 This folder contains data raw data used as input for code in R/
-
--   FILE: {description}
--   visit6_data.sav: {description}
+-   anthro_data.sav:  contains anthropometric data
+-   demographics_data.csv: contains demographic data
+-   intake_data.sav: contains data from the four portion size meals
+-   visit6_data.sav: contains non-fMRI data collected on visit 6 including pre-mri fullness, post-scan image ratings (liking and anticipated fullness)
+-   FoodAndBrainR01DataP-Scansroar.csv: contains data that indicates whether each fMRI run was initiated
 
 ### BIDS/derivatives/
 
