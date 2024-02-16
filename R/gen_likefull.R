@@ -1,23 +1,15 @@
+# Code to process and organize post-scan ratings of liking and anticipated fullness
 
 # load packages
 library(plyr)
 library(dplyr)
 library(stringr)
 
-#### import BIDS derivatives to use in analyses ####
+# source data organization script to generate image_ratings (dataframe of raw data)
+source("R/data_org.R")
 
-# import behavioral data
-image_ratings <- read.csv("data/derivatives_R/fmri_image_ratings.csv")
-
-# import index file that specifies children included in analyses
-index_wide <- read.table("BIDS//derivatives/analyses/foodcue-paper1/level2/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
-index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
-names(index) <- "id" # add column name
-
-#censor sum database
-censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
-names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
-
+# alternatively -- import csv of image_ratings exported by "R/data_org.R"
+# image_ratings <- read.csv("data/derivatives_R/fmri_image_ratings.csv")
 
 #### Average post-scanner ratings by block ####
 
@@ -207,7 +199,3 @@ byblock_full_long <- byblock_full_long %>%
     TRUE ~ ""  # Default value if none of the conditions are met
   ))
 
-
-#### Export for use in parametric analyses (AFNI) ####
-write.csv(byblock_like_long, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/liking_ratings_byblock.csv', row.names = FALSE)
-write.csv(byblock_full_long, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/fullness_ratings_byblock.csv', row.names = FALSE)

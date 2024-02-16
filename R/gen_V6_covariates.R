@@ -1,5 +1,7 @@
-# pre_mri_fullness:
-#
+# Code to process and export variables from visit 6 (fmri visit) for use as covariates in imaging analyses
+##  this include: pre-mri fullness data, pre-mri anxiety (CAMS), pre-mri snack intake (yes/no)
+##  pre-mri fullness will be imputed for 1 subject w/ missing data
+
 
 # load packages
 library(haven)
@@ -108,7 +110,6 @@ V6_covar <- merge(x = ff_concat, y = CAMS_data, by = "id", all.x = TRUE)
 V6_covar$snack_intake <- compiled$pre_mri_snack[match(V6_covar$id, compiled$id)]
 
 #### Export database for use in imaging analyses ####
-#write.csv(V6_covar, 'data/derivatives_R/V6_covariates.csv', row.names = FALSE)
 write.csv(V6_covar, 'BIDS/derivatives/preprocessed/foodcue-paper1/R/V6_covariates.csv', row.names = FALSE)
 
 
