@@ -12,9 +12,12 @@ This folder contains .R and .Rmd files used for demographic and behavioral analy
 
 In this folder:
 
--   data_org.R : {description. This is sourced by beh_analyses.Rmd and demo.Rmd }
--   beh_analyses.Rmd: {description}
--   demo.Rmd: {description}
+-   data_org.R: imports raw data and generates datasets for analyses. This is sourced by analyze_{}.Rmd scripts
+-   gen_likefull.R: organizes post-scan liking and anticipated fullness ratings for analyses. This is sourced by analyze_likefull.Rmd
+-   analyze_demo.Rmd: generate tables w/ descriptive stats for demographic and imaging covariates
+-   analyze_beh.Rmd: plot and analyze in-scanner behavioral data (% wanting); prepare for paramteric analyzes with %want
+-   analyze_likefull.Rmd: analyze and plot post-scan liking and anticipated fullness ratings by condition
+-   analyze_intake_associaitons.Rmd: test and plot associations between extracted BOLD and laboratory intake
 
 ### data/
 
@@ -40,7 +43,15 @@ This folder contains code to (1) process raw behavioral data and (2) process and
 
 #### BIDS/code/foodcue_proc
 
-This folder contains code used to ....
+This folder contains code used to generate derivatives needed for fmri analyses in AFNI (e.g., onset files, censor files).
+Scripts that begin with p_ contain functions that can be run for 1 subject at a time.
+
+- p0_getbehavial.py: defines function to generate behavioral (wanting) data from the food-cue task by block
+- p1_getonsets.py: defines function to generate onset files that contain onsets for all runs (even those with high motion) 
+- p2_create_censor_files.py: defines function to process -desc-confounds_timeseries.tsv files (output from fmriprep). and output regressor and censor files.
+- p4a_gen_byrun_onsets.py: defines function to generate onset files that exclude runs with motion above a certain threshold
+- p5_gen_onsets_PM.py: defines function to generate onset files for parametric analyses with %want
+- wrapper-python.py: runs functions in p0, p1, p2, p4a, p5 for all subjects with food-cue task data in bids/raw_data
 
 #### BIDS/code/afni/proc_scripts
 
