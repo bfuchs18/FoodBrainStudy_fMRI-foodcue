@@ -12,12 +12,14 @@ This folder contains .R and .Rmd files used for demographic and behavioral analy
 
 In this folder:
 
--   data_org.R: imports raw data and generates datasets for analyses. This is sourced by analyze_{}.Rmd scripts
+-   data_org.R: imports raw data and generates datasets for subsequent processing or analyses. This is sourced by gen_{}.R and analyze_{}.Rmd scripts
 -   gen_likefull.R: organizes post-scan liking and anticipated fullness ratings for analyses. This is sourced by analyze_likefull.Rmd
+-   gen_V6_covariates: generates and exports a database (csv) with pre-mri fullness and anxiety covariates. This data is imported and combined with other covariates via BIDS/code/afni/groupanalyses_paper1/prep_3dttest_covTable.py
 -   analyze_demo.Rmd: generate tables w/ descriptive stats for demographic and imaging covariates
 -   analyze_beh.Rmd: plot and analyze in-scanner behavioral data (% wanting); prepare for paramteric analyzes with %want
 -   analyze_likefull.Rmd: analyze and plot post-scan liking and anticipated fullness ratings by condition
 -   analyze_intake_associaitons.Rmd: test and plot associations between extracted BOLD and laboratory intake
+
 
 ### data/
 
