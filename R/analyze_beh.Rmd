@@ -41,12 +41,12 @@ library(ggsignif)
 # import behavioral data
 beh_all <- read.delim("BIDS/derivatives/preprocessed/beh/task-foodcue_summary.tsv") 
 
-# import index file that specifies children included in analyses
+# import index file that specifies children included in analyses (can also source("R/data_org.R") to import
 index_wide <- read.table("BIDS//derivatives/analyses/foodcue-paper1/level2/index_all_fd-0.9_b20_3runs.txt", quote="\"", comment.char="")
 index <- as.data.frame(t(index_wide)) # transpose index_wide to long dataframes
 names(index) <- "id" # add column name
 
-#censor sum database
+#censor sum database (can also source("R/data_org.R") to import
 censor_sum <- read.delim("BIDS/derivatives/preprocessed/fmriprep/task-foodcue_byrun-censorsummary_fd-0.9.tsv")
 names(censor_sum)[names(censor_sum) == 'sub'] <- 'id'
 
@@ -78,50 +78,98 @@ beh_food<-beh[!(beh$cue_type=="office"),]
 
 # Behavioral analyses
 
-The following code analyses p_want by cue type/ED and amount and generates corresponding plots.
+The following code analyses p_want () by cue type/ED and amount and generates corresponding plots.
 Behavior is assessed for all subjects included in non-parametric analyses (n=61).
 
 Behavioral analyses:
-``` {r p_want analyses}
+``` {r p_want lmer analyses}
 
 # remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
 beh_clean <- beh[!is.na(beh$p_want_of_resp),]
 beh_food_clean<-beh_food[!is.na(beh_food$p_want_of_resp),]
 
-beh_clean$run <- as.factor(beh_clean$run)
-beh_food_clean$run <- as.factor(beh_food_clean$run)
-
+# calculate percentage from proportion
+beh_clean$percent_want_of_resp <- beh_clean$p_want_of_resp*100
+beh_food_clean$percent_want_of_resp <- beh_food_clean$p_want_of_resp*100
 
 #### ANALYSES ####
 
+beh_clean$run <- as.integer(beh_clean$run)
+beh_food_clean$run <- as.integer(beh_food_clean$run)
+
 # portion size (large, small) x cue type (food, office)
-p_want_mixed_cuetype = lmer(p_want_of_resp ~ portion_size*cue_type + run + (1 | id), data = beh_clean)
-anova(p_want_mixed_cuetype) # main effect of cue type
+lmer_prop_want_cuetype = lmer(p_want_of_resp ~ cue_type*portion_size + run + (1 | id), data = beh_clean)
+lmer_perc_want_cuetype = lmer(percent_want_of_resp ~ cue_type*portion_size + run + (1 | id), data = beh_clean)
+
+anova(lmer_prop_want_cuetype) # main effect of cue type
+anova(lmer_perc_want_cuetype) # main effect of cue type
+
 
 # portion size (large, small) x food-cue type (high, low)
-p_want_mixed_ED = lmer(p_want_of_resp ~ portion_size*energy_density + run + (1 | id), data = beh_food_clean)
-anova(p_want_mixed_ED)
+lmer_prop_want_ED = lmer(p_want_of_resp ~ energy_density*portion_size + run + (1 | id), data = beh_food_clean)
+lmer_perc_want_ED = lmer(percent_want_of_resp ~ energy_density*portion_size + run + (1 | id), data = beh_food_clean)
+anova(lmer_prop_want_ED)
 
-# get means and ses 
-emmeans(p_want_mixed_cuetype, specs = pairwise ~cue_type|portion_size, type = "response")
-emmeans(p_want_mixed_ED, specs = pairwise ~energy_density|portion_size, type = "response")
+#### EMMS ####
+
+##  get estimated marginal means and SEs by conditions showing effect (cue type and ED)
+
+#emmeans(lmer_prop_want_cuetype, specs = pairwise ~cue_type|portion_size, type = "response")
+emmeans(lmer_prop_want_cuetype, specs = pairwise ~cue_type, type = "response")
+emmeans(lmer_perc_want_cuetype, specs = pairwise ~cue_type, type = "response")
+
+#emmeans(lmer_prop_want_ED, specs = pairwise ~energy_density|portion_size, type = "response")
+emmeans(lmer_prop_want_ED, specs = pairwise ~energy_density, type = "response")
+
+```
+
+
+``` {r check assumptions }
+
+##  assess assumptions ##
+# residual plots
+plot(lmer_prop_want_cuetype)
+plot(lmer_prop_want_ED)
+
+# see threads on residual plot that looks similar to this:
+# https://stats.stackexchange.com/questions/120751/not-sure-about-the-interpretation-of-this-residual-plot
+# https://stats.stackexchange.com/questions/524078/assumptions-of-linearity-and-homoskedasticity-when-the-dv-is-a-likert-scale-ho 
+
+qqnorm(resid(lmer_prop_want_cuetype))
+qqline(resid(lmer_prop_want_cuetype))
+qqnorm(resid(lmer_prop_want_ED))
+qqline(resid(lmer_prop_want_ED))
+
 
 ```
 
 Figure 1:
 ``` {r p_want plots}
 
+### plot predicted values (marginal effects) with sjPlot
+# type = "int" plots marginal effects of interaction terms in model
+install.packages("sjPlot")
+
+plot_model(lmer_prop_want_cuetype, type = "int", ci.lvl = 0.95) + ylim(0, 1)
+plot_model(lmer_prop_want_ED, type = "int", ci.lvl = 0.95) + ylim(0, 1)
+
+#### Violin plots
+
 # get adjusted response after adjusting for covariates in model 
-beh_clean$predict_p_want_mixed_cuetype <- predict(p_want_mixed_cuetype, type="response")
-beh_food_clean$predict_p_want_mixed_ED <- predict(p_want_mixed_ED, type="response")
+beh_clean$predict_lmer_prop_want_cuetype <- predict(lmer_prop_want_cuetype, type="response")
+beh_food_clean$predict_lmer_prop_want_ED <- predict(lmer_prop_want_ED, type="response")
+
+beh_clean$predict_lmer_perc_want_cuetype <- predict(lmer_perc_want_cuetype, type="response")
+beh_food_clean$predict_lmer_perc_want_ED <- predict(lmer_perc_want_ED, type="response")
+
 
 #### VIOLIN PLOTS with ggplot####
 
 # Amount (large, small) x cue (food, office)
-plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype, fill = portion_size)) +
+plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_lmer_perc_want_cuetype, fill = portion_size)) +
   theme_bw() +
   geom_violin(trim=FALSE)+
-  geom_signif(comparisons = list(c("food","office")), y_position = 1.3,
+  geom_signif(comparisons = list(c("food","office")), y_position = 120,
               map_signif_level = TRUE)+
   geom_boxplot(aes(group = interaction(cue_type, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
@@ -129,17 +177,17 @@ plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_p_want_mixed_cuetype
        y = "Adjusted %want") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
-  ylim(0, 1.5) + 
+  ylim(-5, 125) + 
   scale_x_discrete(labels = c("food" = "Food",
                               "office" = "Office Supplies"))
 
 plot_cuetype
 
 # # Food amount (large, small) x ED (high, low)
-plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_ED, fill = portion_size)) +
+plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_lmer_perc_want_ED, fill = portion_size)) +
   theme_bw() +
   geom_violin(trim=FALSE)+
-  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 1.3,
+  geom_signif(comparisons = list(c("HighED","LowED")), y_position = 120,
               map_signif_level = TRUE) +
   geom_boxplot(aes(group = interaction(energy_density, portion_size)), fill = 'white', position = position_dodge(width = 0.9),  width = 0.1, outlier.shape = NA) +
   scale_fill_manual(values = c("lightgrey", "grey35")) +
@@ -147,7 +195,7 @@ plot_ED <- ggplot(beh_food_clean, aes(x=energy_density, y=predict_p_want_mixed_E
        y = "Adjusted %want") +
   theme(legend.title = element_blank()) +
   theme(axis.text=element_text(size=12, color = "black"), axis.title=element_text(size=14,face="bold")) + 
-  ylim(0, 1.5) +
+  ylim(-5, 125) +
   scale_x_discrete(labels = c("HighED" = "Higher",
                               "LowED" = "Lower"))
 
@@ -221,134 +269,5 @@ nrow(novar_PS_food) # N = 2
 novar_office <- distinct_office[(distinct_office$distinct==1),]
 novar_office$id # id 4  17  26  49  56  84  89 116
 nrow(novar_office) # N = 8
-
-```
-
-```{r average wanting by analyzed condition}
-#### generate beh databases with analyzed sample ####
-
-# remove subjects with no variability in p_want for the given analyses
-
-# remove 4 and 40 -- not included in analyses by PS
-pm_beh_food_analyzed_PS<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==40),]
-
-# remove 4 40 amd 58 -- not included in analyses by ED
-pm_beh_food_analyzed_ED<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==40 | pm_beh_clean$id==58),]
-
-# remove  4  17  26  49  56  84  89 116 -- not included in analyses for office
-pm_beh_analyzed_office<-pm_beh_clean[!(pm_beh_clean$id==4 | pm_beh_clean$id==17 | pm_beh_clean$id==26 | pm_beh_clean$id==49 | pm_beh_clean$id==56 | pm_beh_clean$id==84 | pm_beh_clean$id==89 | pm_beh_clean$id==116),]
-
-#### count subs included in parametric analyses analyses ####
-n_distinct(pm_beh_food_analyzed_PS$id)
-n_distinct(pm_beh_food_analyzed_ED$id)
-n_distinct(pm_beh_analyzed_office$id)
-
-#### assess range in p_want responses by id, condition ####
-
-# get min and max of distinct p_want values by id, ED condition
-range_ED <- pm_beh_food_analyzed_ED %>%
-  filter(cue_type == "food") %>% # remove office rows 
-  group_by(id, energy_density) %>% 
-  dplyr::summarize(min_pwant = min(p_want_of_resp), 
-            max_pwant = max(p_want_of_resp),
-            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
-
-# get min and max of distinct p_want values by id, PS condition
-range_PS <- pm_beh_food_analyzed_PS %>%
-  filter(cue_type == "food") %>% 
-  group_by(id, portion_size) %>% 
-  dplyr::summarize(min_pwant = min(p_want_of_resp), 
-            max_pwant = max(p_want_of_resp),
-            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
-
-# get min and max of distinct p_want values by id, office supplys
-range_office <- pm_beh_analyzed_office %>%
-  filter(cue_type == "office") %>% 
-  group_by(id) %>% 
-  dplyr::summarize(min_pwant = min(p_want_of_resp), 
-            max_pwant = max(p_want_of_resp),
-            range_pwant = max(p_want_of_resp)- min(p_want_of_resp))
-  
-# summarize range
-describeBy(range_ED$range_pwant, group = range_ED$energy_density)
-describeBy(range_PS$range_pwant, group = range_PS$portion_size)
-describe(range_office$range_pwant)
-
-
-hist(range_ED$range_pwant)
-hist(range_PS$range_pwant)
-hist(range_office$range_pwant)
-
-```
-
-
-```{r average wanting by analyzed condition}
-
-# analyzed condtions: HighED, SmallED, LargePS, SmallPS
-
-## datasets to use:
-#pm_beh_food_analyzed_PS -- contains data for subjects included in parametric analyses by PS
-#pm_beh_food_analyzed_ED -- contains data for subjects included in parametric analyses by ED
-#pm_beh_analyzed_office -- contains data for subjects included in parametric analyses with office supplies
-
-## NOTE: average here is calculated differently than for liking and fullness ratings -- for liking and fullness, ratings were averaged across all trials. here, % wanting is averaged across all blocks 
-
-# subset beh into dataframes for each condition
-beh_pwant_HighED <- pm_beh_food_analyzed_ED[pm_beh_food_analyzed_ED$energy_density == 'HighED',]
-beh_pwant_LowED <- pm_beh_food_analyzed_ED[pm_beh_food_analyzed_ED$energy_density == 'LowED',]
-beh_pwant_LargePS <- pm_beh_food_analyzed_PS[pm_beh_food_analyzed_PS$portion_size == 'Large',]
-beh_pwant_SmallPS <- pm_beh_food_analyzed_PS[pm_beh_food_analyzed_PS$portion_size == 'Small',]
-
-#create new data sets with person(i)-mean (pm) values for each condition
-high_imeans <- ddply(beh_pwant_HighED, "id", summarize,
-                       p_want_high_pm = mean(p_want_of_resp, na.rm=TRUE))
-
-low_imeans <- ddply(beh_pwant_LowED, "id", summarize,
-                       p_want_low_pm = mean(p_want_of_resp, na.rm=TRUE))
-
-large_imeans <- ddply(beh_pwant_LargePS, "id", summarize,
-                       p_want_large_pm = mean(p_want_of_resp, na.rm=TRUE))
-
-small_imeans <- ddply(beh_pwant_SmallPS, "id", summarize,
-                       p_want_small_pm = mean(p_want_of_resp, na.rm=TRUE))
-
-# create wide trait data set -- will have the average wanting for each person, by condition (1 per column)
-beh_pwant_trait <- NA
-beh_pwant_trait <- merge(high_imeans, low_imeans, by="id", all=T)
-beh_pwant_trait <- merge(beh_pwant_trait, large_imeans, by="id", all=T)
-beh_pwant_trait <- merge(beh_pwant_trait, small_imeans, by="id", all=T)
-
-# make long
-beh_pwant_trait_long <- melt(beh_pwant_trait, id.vars=c("id"))
-
-```
-
-
-# Descriptive stats and plots
-
-```{r avg p_want: descriptives and plot, include=TRUE}
-
-# get descriptive stats for average (trait) wanting scores
-## average wanting scores reflect each subjects percent wanting for each condition, averaged across all runs
-## sd reflects between-person variability in trait wanting (i.e., the dispersion of each individual’s mean around the overall sample average (grand mean))
-
-describe(beh_pwant_trait)
-
-# Function to produce summary statistics (mean and +/- sd)
-data_summary <- function(x) {
-   m <- mean(x)
-   m_minusSD <- m-sd(x)
-   m_plusSD <- m+sd(x)
-   return(c(y=m,ymin=m_minusSD,ymax=m_plusSD))
-}
-
-# violin plot with mean (dot) and +/- 1SD bar
-ggplot(beh_pwant_trait_long, aes(x=variable, y=value)) + 
-    geom_violin(trim=FALSE) + stat_summary(fun.data=data_summary)
-
-# violin plot with dot plot
-ggplot(beh_pwant_trait_long, aes(x=variable, y=value)) + 
-    geom_violin(trim=FALSE) + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=1)
 
 ```
