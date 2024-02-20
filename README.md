@@ -10,6 +10,7 @@ This folder contains .R and .Rmd files used for demographic and behavioral analy
 
 In this folder:
 
+-   deidentify_data.R: removes PII from datasets in data/raw/ and copies de-identified data into data/raw_deidentified/
 -   data_org.R: imports raw data and generates datasets for subsequent processing or analyses. This is sourced by gen_{}.R and analyze_{}.Rmd scripts
 -   gen_likefull.R: organizes post-scan liking and anticipated fullness ratings for analyses. This is sourced by analyze_likefull.Rmd
 -   gen_V6_covariates: generates and exports a database (csv) with pre-mri fullness and anxiety covariates. This data is imported and combined with other covariates via BIDS/code/afni/groupanalyses_paper1/prep_3dttest_covTable.py
@@ -23,9 +24,12 @@ In this folder:
 
 #### data/raw
 
-This folder contains data raw data used as input for code in R/
+This folder would contain data raw data used as input for code in R/ but it will not be shared, as some datasets contain potentially identifiable information. Datasets in this folder have been copied into data/raw_deidentified with potentially identifiable information (visit 1 date, date of birth, race, ethnicity) removed. 
+
+#### data/raw_deidentified
+
+This folder contains raw but de-identified datasets to use as input for code in R/. Using this data will require updating import paths in data_org.R Files starting with dict- contain metadata for the following datasets:
 -   anthro_data.sav:  contains anthropometric data
--   demographics_data.csv: contains demographic data
 -   intake_data.sav: contains data from the four portion size meals
 -   visit6_data.sav: contains non-fMRI data collected on visit 6 including pre-mri fullness, post-scan image ratings (liking and anticipated fullness)
 -   FoodAndBrainR01DataP-Scansroar.csv: contains data that indicates whether each fMRI run was initiated
