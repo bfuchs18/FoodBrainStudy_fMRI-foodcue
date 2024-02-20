@@ -11,6 +11,13 @@ library(haven)
 library(data.table)
 library(haven)
 
+############ Note to user ############
+
+# If using publicly-shared data, this script will need to be modified to address the following:
+
+## 1) data are to be imported from data/raw_deidentified instead of data/raw
+## 2) anthro_data.sav and intake_data.sav are not .sav files, but .csv files -- they can be uploaded with read.csv
+###   data for the following variables has been replaced with NAs: v1_date, dob, race, ethnicity
 
 ############ Load Data (except intake) ###########
 
