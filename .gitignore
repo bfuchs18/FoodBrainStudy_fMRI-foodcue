@@ -4,6 +4,7 @@
 .Ruserdata
 data/derivatives_R/
 data/raw/
+R/assess_screening*
 
 Rplot*
 .DS_Store
