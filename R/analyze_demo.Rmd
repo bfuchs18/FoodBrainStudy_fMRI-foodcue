@@ -6,6 +6,9 @@ output: html_document
 editor_options: 
   chunk_output_type: console
 ---
+
+# Setup
+
 ```{r load packages }
 # load packages
 library(data.table)
@@ -17,26 +20,18 @@ library(haven)
 library(reshape2)
 ```
 
-```{r load generated datasets, include=FALSE}
+```{r source data}
 
-# Source data_org.R to generate censor_sum and V6_compiled datasets 
-# V6_compiled contains demographic MRI-related variables for children who attended visit 6
-source("R/data_org.R")
-
-```
-
-# Prepare dataframes
-
-```{r set up pre-mri freddy fullness}
-# Create 'compiled' dataframe with pre-MRI fullness variables
-
-# Source V6_covariates.R to generate pre-MRI fullness variables
+# Source gen_V6_covariates.R to generate pre-MRI fullness variables
+  # this sources data_org.R to generate censor_sum and V6_compiled datasets 
   # will create 'compiled' database that is V6_compiled + pre_mri_ff and pre_mri_snack variables
   # will generate a dataframe called ff_concat that contains imputed values for subject 54
 
 source("R/gen_V6_covariates.R")
 
 ```
+
+# Prepare dataframes
 
 ```{r generate demo variables}
 

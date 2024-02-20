@@ -1,10 +1,9 @@
-# data_org: generates the following databases for analyses:
+# data_org.R: imports data and generates the following dataframes for subsequent processing/analyses:
 #
-# demographics_compiled.csv -- contains demographic and visit 6 variables (e.g., fullness, scan status)
-#                               for participants who attended visit 6
-# fmri_image_ratings.csv -- contains liking and fullness ratings from post-fmri behavioral assessment (300 ratings per child)
-# censor_sum.csv -- long database that contains the percent of TRs censored from food/office blocks for each run
-
+#   1) V6_compiled: contains demographic and visit 6 variables (e.g., fullness, scan status) for participants who attended visit 6 (study sample)
+#   2) fmri_image_ratings: contains liking and fullness ratings from post-fmri behavioral assessment (300 ratings per child)
+#   3) censor_sum: long database that contains the percent of TRs censored from food/office blocks for each run
+#   4) intake_long: long database with intake data from the four laboratory portion size meals
 
 # load packages
 library(haven)
@@ -26,9 +25,6 @@ anthro_data <- read_sav("data/raw/anthro_data.sav")
 
 # visit 6 database
 V6 <- read_sav("data/raw/visit6_data.sav")
-
-# visit notes
-visit_notes <- read_sav("data/raw/visit_notes.sav")
 
 # scan status redcap form
 scanning <- read.csv("data/raw/FoodAndBrainR01DataP-Scansroar.csv")
