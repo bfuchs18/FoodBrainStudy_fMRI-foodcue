@@ -28,7 +28,7 @@ This folder would contain data raw data used as input for code in R/ but it will
 
 #### data/raw_deidentified
 
-This folder contains raw but de-identified datasets to use as input for code in R/. Using this data will require updating import paths in data_org.R Files starting with dict- contain metadata for the following datasets:
+This folder contains raw but de-identified datasets to use as input for code in R/. Using this data will require updating import paths in data_org.R. Files starting with dict- contain metadata for the following datasets:
 -   anthro_data.csv:  contains anthropometric data
 -   intake_data.csv: contains data from the four portion size meals
 -   visit6_data.sav: contains non-fMRI data collected on visit 6 including pre-mri fullness, post-scan image ratings (liking and anticipated fullness)
