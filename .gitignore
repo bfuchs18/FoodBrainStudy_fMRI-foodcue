@@ -3,8 +3,7 @@
 .RData
 .Ruserdata
 data/derivatives_R/
-data/raw/*pna*
-data/raw/*visit_notes*
+data/raw/
 
 Rplot*
 .DS_Store
