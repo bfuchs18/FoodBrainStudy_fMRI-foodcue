@@ -82,7 +82,7 @@ The following code analyses p_want () by cue type/ED and amount and generates co
 Behavior is assessed for all subjects included in non-parametric analyses (n=61).
 
 Behavioral analyses:
-``` {r p_want lmer analyses}
+``` {r conduct analyses}
 
 # remove NAs -- not needed to run analyses, but helpful for predicting values to plot results
 beh_clean <- beh[!is.na(beh$p_want_of_resp),]
@@ -92,78 +92,52 @@ beh_food_clean<-beh_food[!is.na(beh_food$p_want_of_resp),]
 beh_clean$percent_want_of_resp <- beh_clean$p_want_of_resp*100
 beh_food_clean$percent_want_of_resp <- beh_food_clean$p_want_of_resp*100
 
-#### ANALYSES ####
-
+# set run as integer
 beh_clean$run <- as.integer(beh_clean$run)
 beh_food_clean$run <- as.integer(beh_food_clean$run)
 
-# portion size (large, small) x cue type (food, office)
-lmer_prop_want_cuetype = lmer(p_want_of_resp ~ cue_type*portion_size + run + (1 | id), data = beh_clean)
-lmer_perc_want_cuetype = lmer(percent_want_of_resp ~ cue_type*portion_size + run + (1 | id), data = beh_clean)
+#### lmer analyses ####
 
-anova(lmer_prop_want_cuetype) # main effect of cue type
+# portion size (large, small) x cue type (food, office)
+lmer_perc_want_cuetype = lmer(percent_want_of_resp ~ cue_type*portion_size + run + (1 | id), data = beh_clean)
 anova(lmer_perc_want_cuetype) # main effect of cue type
 
-
 # portion size (large, small) x food-cue type (high, low)
-lmer_prop_want_ED = lmer(p_want_of_resp ~ energy_density*portion_size + run + (1 | id), data = beh_food_clean)
 lmer_perc_want_ED = lmer(percent_want_of_resp ~ energy_density*portion_size + run + (1 | id), data = beh_food_clean)
-anova(lmer_prop_want_ED)
+anova(lmer_perc_want_ED)
 
-#### EMMS ####
+#### get EMMs ####
 
 ##  get estimated marginal means and SEs by conditions showing effect (cue type and ED)
-
-#emmeans(lmer_prop_want_cuetype, specs = pairwise ~cue_type|portion_size, type = "response")
-emmeans(lmer_prop_want_cuetype, specs = pairwise ~cue_type, type = "response")
 emmeans(lmer_perc_want_cuetype, specs = pairwise ~cue_type, type = "response")
-
-#emmeans(lmer_prop_want_ED, specs = pairwise ~energy_density|portion_size, type = "response")
-emmeans(lmer_prop_want_ED, specs = pairwise ~energy_density, type = "response")
-
-```
+emmeans(lmer_perc_want_ED, specs = pairwise ~energy_density, type = "response")
 
 
-``` {r check assumptions }
+#### assess assumptions ####
 
-##  assess assumptions ##
 # residual plots
-plot(lmer_prop_want_cuetype)
-plot(lmer_prop_want_ED)
 
 # see threads on residual plot that looks similar to this:
 # https://stats.stackexchange.com/questions/120751/not-sure-about-the-interpretation-of-this-residual-plot
 # https://stats.stackexchange.com/questions/524078/assumptions-of-linearity-and-homoskedasticity-when-the-dv-is-a-likert-scale-ho 
 
-qqnorm(resid(lmer_prop_want_cuetype))
-qqline(resid(lmer_prop_want_cuetype))
-qqnorm(resid(lmer_prop_want_ED))
-qqline(resid(lmer_prop_want_ED))
-
+qqnorm(resid(lmer_perc_want_cuetype))
+qqline(resid(lmer_perc_want_cuetype))
+qqnorm(resid(lmer_perc_want_ED))
+qqline(resid(lmer_perc_want_ED))
 
 ```
 
-Figure 1:
-``` {r p_want plots}
-
-### plot predicted values (marginal effects) with sjPlot
-# type = "int" plots marginal effects of interaction terms in model
-install.packages("sjPlot")
-
-plot_model(lmer_prop_want_cuetype, type = "int", ci.lvl = 0.95) + ylim(0, 1)
-plot_model(lmer_prop_want_ED, type = "int", ci.lvl = 0.95) + ylim(0, 1)
-
-#### Violin plots
+Manuscript Figure 2: Adjusted percent wanting (%want) of items by cue type 
+``` {r generate violin plots}
 
 # get adjusted response after adjusting for covariates in model 
-beh_clean$predict_lmer_prop_want_cuetype <- predict(lmer_prop_want_cuetype, type="response")
-beh_food_clean$predict_lmer_prop_want_ED <- predict(lmer_prop_want_ED, type="response")
 
 beh_clean$predict_lmer_perc_want_cuetype <- predict(lmer_perc_want_cuetype, type="response")
 beh_food_clean$predict_lmer_perc_want_ED <- predict(lmer_perc_want_ED, type="response")
 
 
-#### VIOLIN PLOTS with ggplot####
+# generate violin plots with ggplot
 
 # Amount (large, small) x cue (food, office)
 plot_cuetype <- ggplot(beh_clean, aes(x=cue_type, y=predict_lmer_perc_want_cuetype, fill = portion_size)) +
