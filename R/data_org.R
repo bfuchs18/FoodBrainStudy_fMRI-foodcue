@@ -56,8 +56,6 @@ anthro_data_reduced <- anthro_data[,c("id","sex","age_yr", "race", "ethnicity" ,
 
 V6_reduced <- V6[,c("id", "ff_premri_snack", "ff_postmri_snack", "ff_postmri_snack2", "cams_pre_mri")]
 
-V6_notes <- visit_notes[,c("id", "v6_childnotes")]
-
 image_ratings <- V6[,grep("id|^mrivas|mri_version", colnames(V6))]
 
 scanning_reduced <- scanning[,c("id", "fmri_pp_complete", "fmri_pp_scans_roar___2","fmri_pp_scans_roar___3", "fmri_pp_scans_roar___4","fmri_pp_scans_roar___5","fmri_pp_scans_roar___6" )]
